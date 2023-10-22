@@ -1,0 +1,3 @@
+/Users/saridvorakova/CLionProjects/SP_ZOS_CPP/cmake-build-debug/CMakeFiles/SP_ZOS_CPP.dir
+/Users/saridvorakova/CLionProjects/SP_ZOS_CPP/cmake-build-debug/CMakeFiles/edit_cache.dir
+/Users/saridvorakova/CLionProjects/SP_ZOS_CPP/cmake-build-debug/CMakeFiles/rebuild_cache.dir
