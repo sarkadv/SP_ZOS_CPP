@@ -2,8 +2,8 @@
 // Created by Šári Dvořáková on 22.10.2023.
 //
 
-#ifndef SP_ZOS_CPP_FS_H
-#define SP_ZOS_CPP_FS_H
+#ifndef SP_ZOS_CPP_STRUCTURES_H
+#define SP_ZOS_CPP_STRUCTURES_H
 
 #include <cinttypes>
 
@@ -42,4 +42,4 @@ struct directory_item {
     char item_name[12];              //8+3 + /0 C/C++ ukoncovaci string znak
 };
 
-#endif //SP_ZOS_CPP_FS_H
+#endif //SP_ZOS_CPP_STRUCTURES_H

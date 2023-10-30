@@ -4,7 +4,9 @@ project(SP_ZOS_CPP)
 set(CMAKE_CXX_STANDARD 17)
 
 add_executable(SP_ZOS_CPP fs.cpp
-        fs.h
+        structures.h
         parser.cpp
         parser.h
-        constants.h)
+        constants.h
+        commands.h
+        commands.cpp)
