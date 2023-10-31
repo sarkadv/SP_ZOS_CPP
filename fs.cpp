@@ -10,12 +10,23 @@
 #include "structures.h"
 #include "commands.h"
 
+int vfs_exists(char *vfs) {
+    FILE *file;
+    if ((file = fopen(vfs, "r")))
+    {
+        fclose(file);
+        return 1;
+    }
+    return 0;
+}
+
 int main(int argc, char *argv[]) {
-    char *fs_name = NULL;   // nazev souboroveho systemu
     char input[COMMAND_LENGTH];     // aktualni uzivatelsky input
     char command[STRING_LENGTH];   // aktualni prikaz
     char param1[STRING_LENGTH];   // prvni zadany adresar
     char param2[STRING_LENGTH];   // druhy zadany adresar
+
+    vfs *fs = (vfs*)malloc(sizeof(vfs));
 
     if (argc < ARG_COUNT) {
         printf("Usage: \n");
@@ -23,17 +34,26 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    fs_name = argv[1];
+    fs->name = argv[1];
+
+    if (!vfs_exists(fs->name)) {
+        printf("VFS could not be loaded. Use the *format* command first.\n");
+        fs->loaded = false;
+    }
+    else {
+        // load vfs
+        fs->loaded = true;
+    }
 
     while (1) {
-        printf("------------------------\n");
+        printf("------------------------------------------------\n");
         printf("Type your command:\n");
         fgets(input, COMMAND_LENGTH, stdin);
         if (!parse_input(input, command, param1, param2)) {
             printf("Could not parse input.\n");
             continue;
         }
-        if (!execute_command(command, param1, param2)) {
+        if (!execute_command(command, param1, param2, fs)) {
             printf("Could not execute command.\n");
         }
     }

@@ -7,11 +7,16 @@
 
 #include <cinttypes>
 
+#define SIGNATURE "saridv"
+#define MIN_FS_SIZE_B 50000
+#define INODE_COUNT 1000
+#define CLUSTER_SIZE_B 1000
+
 const int32_t ID_ITEM_FREE = 0;
 
 struct superblock {
     char signature[9];              //login autora FS
-    char volume_descriptor[251];    //popis vygenerovaného FS
+    //char volume_descriptor[251];    //popis vygenerovaného FS
     int32_t disk_size;              //celkova velikost VFS
     int32_t cluster_size;           //velikost clusteru
     int32_t cluster_count;          //pocet clusteru
@@ -40,6 +45,12 @@ struct pseudo_inode {
 struct directory_item {
     int32_t inode;                   // inode odpovídající souboru
     char item_name[12];              //8+3 + /0 C/C++ ukoncovaci string znak
+};
+
+struct vfs {
+    bool loaded;
+    char *name;
+    superblock *superblock;
 };
 
 #endif //SP_ZOS_CPP_STRUCTURES_H

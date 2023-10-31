@@ -31,13 +31,72 @@ int command_help() {
     return 1;
 }
 
-int command_end() {
+int command_end(vfs *fs) {
     printf("Ending program.\n");
+    free(fs);
     exit(EXIT_SUCCESS);
     return 1;
 }
 
-int execute_command(char *command, char *param1, char *param2) {
+int command_format(char *size, vfs *fs) {
+    char units[3];
+    uint32_t format_size_B;
+    superblock *sblock = NULL;
+    uint32_t available_space;
+    uint32_t cluster_count;
+
+    memset(units, 0, sizeof(units));
+
+    if (!size || !fs) {
+        return 0;
+    }
+
+    sscanf(size, " %u %2[^0-9]\n", &format_size_B, units);
+
+    if (!strcmp("B", units)) {
+        format_size_B = format_size_B * 1 - 1;
+    }
+    else if (!strcmp("KB", units)) {
+        format_size_B = format_size_B * 1000 - 1;
+    }
+    else if (!strcmp("MB", units)) {
+        format_size_B = format_size_B * 1000 * 1000 - 1;
+    }
+    else if (!strcmp("GB", units)) {
+        format_size_B = format_size_B * 1000 * 1000 * 1000 - 1;
+    }
+    else {
+        printf("Wrong size unit, use B, KB, MB or GB.\n");
+        return 0;
+    }
+
+    if (format_size_B < MIN_FS_SIZE_B - 1) {
+        printf("Size should be at least 50 KB.\n");
+        return 0;
+    }
+
+    FILE *fp = fopen(fs->name, "w");
+    fseek(fp, format_size_B , SEEK_SET);
+    fputc('\n', fp);
+    fclose(fp);
+
+    sblock = (superblock*)malloc(sizeof(superblock));
+    strcpy(sblock->signature, SIGNATURE);
+    sblock->disk_size = format_size_B;
+    sblock->cluster_size = CLUSTER_SIZE_B;
+
+    fs->superblock = sblock;
+
+    available_space = sblock->disk_size - sizeof(superblock) - sizeof(pseudo_inode)*INODE_COUNT - INODE_COUNT/8;
+    cluster_count = (8*available_space - 8)/(8*sblock->cluster_size + 1);
+    sblock->cluster_count = cluster_count;
+
+    fs->loaded = true;
+
+    return 1;
+}
+
+int execute_command(char *command, char *param1, char *param2, vfs *fs) {
     if (!command) {
         return 0;
     }
@@ -46,7 +105,7 @@ int execute_command(char *command, char *param1, char *param2) {
         return command_help();
     }
     else if (strcmp(COMMAND_END, command) == 0) {
-        return command_end();
+        return command_end(fs);
     }
     else if (strcmp(COMMAND_COPY, command) == 0) {
         printf("copy\n");
@@ -88,7 +147,7 @@ int execute_command(char *command, char *param1, char *param2) {
         printf("load\n");
     }
     else if (strcmp(COMMAND_FORMAT, command) == 0) {
-        printf("format\n");
+        return command_format(param1, fs);
     }
     else if (strcmp(COMMAND_SYMB_LINK, command) == 0) {
         printf("symbolic link\n");

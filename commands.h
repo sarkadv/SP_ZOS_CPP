@@ -5,6 +5,8 @@
 #ifndef SP_ZOS_CPP_COMMANDS_H
 #define SP_ZOS_CPP_COMMANDS_H
 
+#include "structures.h"
+
 #define COMMAND_HELP "help"
 #define COMMAND_END "end"
 #define COMMAND_COPY "cp"
@@ -23,6 +25,6 @@
 #define COMMAND_FORMAT "format"
 #define COMMAND_SYMB_LINK "slink"
 
-int execute_command(char *command, char *param1, char *param2);
+int execute_command(char *command, char *param1, char *param2, vfs *fs);
 
 #endif //SP_ZOS_CPP_COMMANDS_H
