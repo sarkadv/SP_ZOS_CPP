@@ -54,29 +54,29 @@ int command_format(char *size, vfs *fs) {
     sscanf(size, " %u %2[^0-9]\n", &format_size_B, units);
 
     if (!strcmp("B", units)) {
-        format_size_B = format_size_B * 1 - 1;
+        format_size_B = format_size_B * 1;
     }
     else if (!strcmp("KB", units)) {
-        format_size_B = format_size_B * 1000 - 1;
+        format_size_B = format_size_B * 1000;
     }
     else if (!strcmp("MB", units)) {
-        format_size_B = format_size_B * 1000 * 1000 - 1;
+        format_size_B = format_size_B * 1000 * 1000;
     }
     else if (!strcmp("GB", units)) {
-        format_size_B = format_size_B * 1000 * 1000 * 1000 - 1;
+        format_size_B = format_size_B * 1000 * 1000 * 1000;
     }
     else {
         printf("Wrong size unit, use B, KB, MB or GB.\n");
         return 0;
     }
 
-    if (format_size_B < MIN_FS_SIZE_B - 1) {
+    if (format_size_B < MIN_FS_SIZE_B) {
         printf("Size should be at least 50 KB.\n");
         return 0;
     }
 
     FILE *fp = fopen(fs->name, "w");
-    fseek(fp, format_size_B , SEEK_SET);
+    fseek(fp, format_size_B - 1, SEEK_SET);
     fputc('\n', fp);
     fclose(fp);
 
@@ -88,7 +88,7 @@ int command_format(char *size, vfs *fs) {
     fs->superblock = sblock;
 
     available_space = sblock->disk_size - sizeof(superblock) - sizeof(pseudo_inode)*INODE_COUNT - INODE_COUNT/8;
-    cluster_count = (8*available_space - 8)/(8*sblock->cluster_size + 1);
+    cluster_count = (8 * available_space - 8)/(8 * sblock->cluster_size + 1);
     sblock->cluster_count = cluster_count;
 
     fs->loaded = true;

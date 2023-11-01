@@ -9,4 +9,7 @@ add_executable(SP_ZOS_CPP fs.cpp
         parser.h
         constants.h
         commands.h
-        commands.cpp)
+        commands.cpp
+        bitmap.cpp
+        bitmap.h
+)

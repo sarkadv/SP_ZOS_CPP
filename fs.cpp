@@ -9,6 +9,7 @@
 #include "parser.h"
 #include "structures.h"
 #include "commands.h"
+#include "bitmap.h"
 
 int vfs_exists(char *vfs) {
     FILE *file;
