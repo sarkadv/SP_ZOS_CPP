@@ -5,11 +5,13 @@
 #ifndef SP_ZOS_CPP_DIRECTORY_H
 #define SP_ZOS_CPP_DIRECTORY_H
 
+#define FILENAME_LENGTH 12
+
 #include <cinttypes>
 
 typedef struct dir_item {
     int32_t inode;                   // inode odpovídající souboru
-    char name[12];              //8+3 + /0 C/C++ ukoncovaci string znak
+    char name[FILENAME_LENGTH];              //8+3 + /0 C/C++ ukoncovaci string znak
     dir_item *next;
 } directory_item;
 

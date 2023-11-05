@@ -10,6 +10,7 @@
 #include "inode.h"
 #include "data_block.h"
 #include "parser.h"
+#include "constants.h"
 
 int command_help() {
     printf("--- Available commands ---\n");
@@ -40,6 +41,47 @@ int command_end(vfs *fs) {
     free(fs);
     exit(EXIT_SUCCESS);
     return 1;
+}
+
+inode *find_free_inode(vfs *fs) {
+    int i;
+
+    if (!fs) {
+        return NULL;
+    }
+
+    for (i = 0; i < INODE_COUNT; i++) {
+        if (!get_bit(fs->bitmapi, i)) {
+            return fs->inodes[i];
+        }
+    }
+
+    return NULL;    // zadny prazdny i uzel
+}
+
+data_block **find_free_data_blocks(vfs *fs, int32_t required_blocks) {
+    data_block **blocks;
+    int i;
+    int32_t found = 0;
+
+    if (!fs || required_blocks <= 0) {
+        return NULL;
+    }
+
+    blocks = (data_block**)malloc(sizeof(data_block*)*required_blocks);
+
+    for (i = 0; i < fs->superblock->cluster_count; i++) {
+        if (!get_bit(fs->bitmapd, i)) {
+            blocks[found] = fs->data_blocks[i];
+            found++;
+
+            if (found == required_blocks) {
+                return blocks;
+            }
+        }
+    }
+
+    return NULL;    // nedostatek prazdnych bloku
 }
 
 int write_vfs_to_file(vfs *vfs) {
@@ -369,17 +411,119 @@ int command_format(char *size, vfs *vfs) {
 
     vfs->loaded = true;
 
+    printf("OK\n");
     return 1;
 }
 
 int command_list(vfs *fs, char *path) {
     directory *dir;
+    directory_item *subdirectory;
+    directory_item *file;
 
     if (!fs) {
         return 0;
     }
 
     dir = parse_path(fs, path);
+
+    if (!dir) {
+        printf("Path not found.\n");
+        return 0;
+    }
+
+    subdirectory = dir->subdirectories;
+    file = dir->files;
+
+    if (subdirectory == NULL && file == NULL) {
+        printf("No contents found.\n");
+    }
+
+    while (subdirectory != NULL) {
+        printf("+%s\n", subdirectory->name);
+        subdirectory = subdirectory->next;
+    }
+
+    while (file != NULL) {
+        printf("-%s\n", file->name);
+        file = file->next;
+    }
+
+    return 1;
+}
+
+char *find_absolute_path(directory *dir) {
+    char *path;
+    char *reversed;
+    directory *current_directory;
+    int i, j;
+    char *delimiter = (char*)"/\0";
+
+    if (!dir) {
+        return NULL;
+    }
+
+    path = (char*)calloc(sizeof(char), COMMAND_LENGTH);
+    current_directory = dir;
+
+    while (current_directory != NULL) {
+        strcat(path, current_directory->this_item->name);
+        strcat(path, delimiter);
+
+        current_directory = current_directory->parent;
+    }
+
+    reversed = (char*)calloc(sizeof(char), COMMAND_LENGTH);
+
+    i = 0;
+    j = strlen(path) - 1;
+
+    while (i <= strlen(path) - 1)
+    {
+        reversed[i] = path[j];
+        i++;
+        j--;
+    }
+
+    reversed[strlen(path)] = '\0';
+
+    free(path);
+
+    return reversed;
+
+}
+
+int command_print_work_dir(vfs *fs) {
+    char *path;
+
+    if (!fs) {
+        return 0;
+    }
+
+    path = find_absolute_path(fs->current_directory);
+    printf("%s\n", path);
+    free(path);
+
+    return 1;
+}
+
+int command_change_dir(vfs *fs, char *path) {
+    directory *result_directory;
+
+    if (!fs) {
+        return 0;
+    }
+
+    result_directory = parse_path(fs, path);
+
+    if (!result_directory) {
+        printf("Path not found.\n");
+        return 0;
+    }
+
+    fs->current_directory = result_directory;
+
+    printf("OK\n");
+    return 1;
 }
 
 int execute_command(char *command, char *param1, char *param2, vfs *fs) {
@@ -415,10 +559,10 @@ int execute_command(char *command, char *param1, char *param2, vfs *fs) {
         printf("concatenate\n");
     }
     else if (strcmp(COMMAND_CHANGE_DIR, command) == 0) {
-        printf("change dir\n");
+        return command_change_dir(fs, param1);
     }
     else if (strcmp(COMMAND_PRINT_WORK_DIR, command) == 0) {
-        printf("print work dir\n");
+        return command_print_work_dir(fs);
     }
     else if (strcmp(COMMAND_INFO, command) == 0) {
         printf("info\n");

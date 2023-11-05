@@ -28,7 +28,7 @@ directory_item *create_directory_item(int32_t inode, char *name, directory_item 
 
     dir_item = (directory_item*)malloc(sizeof(directory_item));
     dir_item->inode = inode;
-    strncpy(dir_item->name, name, 12);
+    strncpy(dir_item->name, name, FILENAME_LENGTH);
     dir_item->next = next;
 
     return dir_item;
