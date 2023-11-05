@@ -22,7 +22,9 @@ bitmap *create_bitmap(int32_t size_b) {
 
     new_bitmap = (bitmap*)malloc(sizeof(bitmap));
     new_bitmap->array = (char*)calloc(size_B, 1);
-    new_bitmap->array_size = size_B;
+    memset(new_bitmap->array, 0, sizeof(size_B));
+    new_bitmap->array_size_B = size_B;
+    new_bitmap->array_size_b = size_b;
 
     return new_bitmap;
 }
@@ -32,7 +34,7 @@ int set_bit(bitmap *bitmap, int32_t bit_index) {
         return 0;
     }
 
-    if (bit_index < 0 || bit_index > bitmap->array_size - 1) {
+    if (bit_index < 0 || bit_index > bitmap->array_size_b - 1) {
         return 0;
     }
 
@@ -51,7 +53,7 @@ int clear_bit(bitmap *bitmap, int32_t bit_index) {
         return 0;
     }
 
-    if (bit_index < 0 || bit_index > bitmap->array_size - 1) {
+    if (bit_index < 0 || bit_index > bitmap->array_size_b - 1) {
         return 0;
     }
 
@@ -70,7 +72,7 @@ bool get_bit(bitmap *bitmap, int32_t bit_index) {
         return 0;
     }
 
-    if (bit_index < 0 || bit_index > bitmap->array_size - 1) {
+    if (bit_index < 0 || bit_index > bitmap->array_size_b - 1) {
         return 0;
     }
 

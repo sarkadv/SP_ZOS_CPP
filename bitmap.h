@@ -7,7 +7,8 @@
 
 typedef struct {
     char *array;
-    int32_t array_size;
+    int32_t array_size_B;
+    int32_t array_size_b;
 } bitmap;
 
 bitmap *create_bitmap(int32_t size_b);

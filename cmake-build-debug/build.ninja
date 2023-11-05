@@ -49,8 +49,8 @@ cmake_ninja_workdir = /Users/saridvorakova/CLionProjects/SP_ZOS_CPP/cmake-build-
 
 build cmake_object_order_depends_target_SP_ZOS_CPP: phony || CMakeFiles/SP_ZOS_CPP.dir
 
-build CMakeFiles/SP_ZOS_CPP.dir/fs.cpp.o: CXX_COMPILER__SP_ZOS_CPP_unscanned_Debug /Users/saridvorakova/CLionProjects/SP_ZOS_CPP/fs.cpp || cmake_object_order_depends_target_SP_ZOS_CPP
-  DEP_FILE = CMakeFiles/SP_ZOS_CPP.dir/fs.cpp.o.d
+build CMakeFiles/SP_ZOS_CPP.dir/vfs.cpp.o: CXX_COMPILER__SP_ZOS_CPP_unscanned_Debug /Users/saridvorakova/CLionProjects/SP_ZOS_CPP/vfs.cpp || cmake_object_order_depends_target_SP_ZOS_CPP
+  DEP_FILE = CMakeFiles/SP_ZOS_CPP.dir/vfs.cpp.o.d
   FLAGS = -g -std=gnu++17 -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX14.0.sdk -fcolor-diagnostics
   OBJECT_DIR = CMakeFiles/SP_ZOS_CPP.dir
   OBJECT_FILE_DIR = CMakeFiles/SP_ZOS_CPP.dir
@@ -73,6 +73,30 @@ build CMakeFiles/SP_ZOS_CPP.dir/bitmap.cpp.o: CXX_COMPILER__SP_ZOS_CPP_unscanned
   OBJECT_DIR = CMakeFiles/SP_ZOS_CPP.dir
   OBJECT_FILE_DIR = CMakeFiles/SP_ZOS_CPP.dir
 
+build CMakeFiles/SP_ZOS_CPP.dir/superblock.cpp.o: CXX_COMPILER__SP_ZOS_CPP_unscanned_Debug /Users/saridvorakova/CLionProjects/SP_ZOS_CPP/superblock.cpp || cmake_object_order_depends_target_SP_ZOS_CPP
+  DEP_FILE = CMakeFiles/SP_ZOS_CPP.dir/superblock.cpp.o.d
+  FLAGS = -g -std=gnu++17 -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX14.0.sdk -fcolor-diagnostics
+  OBJECT_DIR = CMakeFiles/SP_ZOS_CPP.dir
+  OBJECT_FILE_DIR = CMakeFiles/SP_ZOS_CPP.dir
+
+build CMakeFiles/SP_ZOS_CPP.dir/data_block.cpp.o: CXX_COMPILER__SP_ZOS_CPP_unscanned_Debug /Users/saridvorakova/CLionProjects/SP_ZOS_CPP/data_block.cpp || cmake_object_order_depends_target_SP_ZOS_CPP
+  DEP_FILE = CMakeFiles/SP_ZOS_CPP.dir/data_block.cpp.o.d
+  FLAGS = -g -std=gnu++17 -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX14.0.sdk -fcolor-diagnostics
+  OBJECT_DIR = CMakeFiles/SP_ZOS_CPP.dir
+  OBJECT_FILE_DIR = CMakeFiles/SP_ZOS_CPP.dir
+
+build CMakeFiles/SP_ZOS_CPP.dir/inode.cpp.o: CXX_COMPILER__SP_ZOS_CPP_unscanned_Debug /Users/saridvorakova/CLionProjects/SP_ZOS_CPP/inode.cpp || cmake_object_order_depends_target_SP_ZOS_CPP
+  DEP_FILE = CMakeFiles/SP_ZOS_CPP.dir/inode.cpp.o.d
+  FLAGS = -g -std=gnu++17 -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX14.0.sdk -fcolor-diagnostics
+  OBJECT_DIR = CMakeFiles/SP_ZOS_CPP.dir
+  OBJECT_FILE_DIR = CMakeFiles/SP_ZOS_CPP.dir
+
+build CMakeFiles/SP_ZOS_CPP.dir/directory.cpp.o: CXX_COMPILER__SP_ZOS_CPP_unscanned_Debug /Users/saridvorakova/CLionProjects/SP_ZOS_CPP/directory.cpp || cmake_object_order_depends_target_SP_ZOS_CPP
+  DEP_FILE = CMakeFiles/SP_ZOS_CPP.dir/directory.cpp.o.d
+  FLAGS = -g -std=gnu++17 -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX14.0.sdk -fcolor-diagnostics
+  OBJECT_DIR = CMakeFiles/SP_ZOS_CPP.dir
+  OBJECT_FILE_DIR = CMakeFiles/SP_ZOS_CPP.dir
+
 
 # =============================================================================
 # Link build statements for EXECUTABLE target SP_ZOS_CPP
@@ -81,7 +105,7 @@ build CMakeFiles/SP_ZOS_CPP.dir/bitmap.cpp.o: CXX_COMPILER__SP_ZOS_CPP_unscanned
 #############################################
 # Link the executable SP_ZOS_CPP
 
-build SP_ZOS_CPP: CXX_EXECUTABLE_LINKER__SP_ZOS_CPP_Debug CMakeFiles/SP_ZOS_CPP.dir/fs.cpp.o CMakeFiles/SP_ZOS_CPP.dir/parser.cpp.o CMakeFiles/SP_ZOS_CPP.dir/commands.cpp.o CMakeFiles/SP_ZOS_CPP.dir/bitmap.cpp.o
+build SP_ZOS_CPP: CXX_EXECUTABLE_LINKER__SP_ZOS_CPP_Debug CMakeFiles/SP_ZOS_CPP.dir/vfs.cpp.o CMakeFiles/SP_ZOS_CPP.dir/parser.cpp.o CMakeFiles/SP_ZOS_CPP.dir/commands.cpp.o CMakeFiles/SP_ZOS_CPP.dir/bitmap.cpp.o CMakeFiles/SP_ZOS_CPP.dir/superblock.cpp.o CMakeFiles/SP_ZOS_CPP.dir/data_block.cpp.o CMakeFiles/SP_ZOS_CPP.dir/inode.cpp.o CMakeFiles/SP_ZOS_CPP.dir/directory.cpp.o
   FLAGS = -g -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX14.0.sdk
   OBJECT_DIR = CMakeFiles/SP_ZOS_CPP.dir
   POST_BUILD = :

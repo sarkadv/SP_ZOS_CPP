@@ -3,7 +3,7 @@
 
 #define ARG_COUNT 2
 #define COMMAND_LENGTH 100
-#define STRING_LENGTH 12
+#define STRING_LENGTH 30
 
 #endif
 

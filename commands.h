@@ -5,7 +5,7 @@
 #ifndef SP_ZOS_CPP_COMMANDS_H
 #define SP_ZOS_CPP_COMMANDS_H
 
-#include "structures.h"
+#include "vfs.h"
 
 #define COMMAND_HELP "help"
 #define COMMAND_END "end"
@@ -26,5 +26,6 @@
 #define COMMAND_SYMB_LINK "slink"
 
 int execute_command(char *command, char *param1, char *param2, vfs *fs);
+int read_vfs_from_file(vfs *fs);
 
 #endif //SP_ZOS_CPP_COMMANDS_H

@@ -4,12 +4,10 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
 #include "constants.h"
 #include "parser.h"
-#include "structures.h"
+#include "vfs.h"
 #include "commands.h"
-#include "bitmap.h"
 
 int vfs_exists(char *vfs) {
     FILE *file;
@@ -42,8 +40,9 @@ int main(int argc, char *argv[]) {
         fs->loaded = false;
     }
     else {
-        // load vfs
-        fs->loaded = true;
+        if (!read_vfs_from_file(fs)) {
+            printf("VFS could not be loaded from file.\n");
+        }
     }
 
     while (1) {

@@ -1,6 +1,10 @@
 #ifndef SP_ZOS_PARSER_H
 #define SP_ZOS_PARSER_H
 
-int parse_input(char *input, char *command, char *directory1, char *directory2);
+#include "directory.h"
+#include "vfs.h"
+
+int parse_input(char *input, char *command, char *param1, char *param2);
+directory *parse_path(vfs *fs, char *input);
 
 #endif

@@ -1,0 +1,27 @@
+//
+// Created by Šári Dvořáková on 02.11.2023.
+//
+
+#ifndef SP_ZOS_CPP_DIRECTORY_H
+#define SP_ZOS_CPP_DIRECTORY_H
+
+#include <cinttypes>
+
+typedef struct dir_item {
+    int32_t inode;                   // inode odpovídající souboru
+    char name[12];              //8+3 + /0 C/C++ ukoncovaci string znak
+    dir_item *next;
+} directory_item;
+
+typedef struct dir {
+    directory_item *files;
+    directory_item *subdirectories;
+    dir *parent;
+    directory_item *this_item;
+} directory;
+
+directory *create_directory(directory_item *files, directory_item *subdirectories, directory *parent, directory_item *this_item);
+
+directory_item *create_directory_item(int32_t inode, char *name, directory_item *next);
+
+#endif //SP_ZOS_CPP_DIRECTORY_H
