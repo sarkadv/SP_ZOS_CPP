@@ -8,8 +8,8 @@
 #include "inode.h"
 #include "bitmap.h"
 
-superblock *create_superblock(char *signature, int32_t disk_size, int32_t cluster_size, int32_t cluster_count, int32_t bitmapd_size_B, int32_t bitmapi_size_B) {
-    if (!signature || disk_size <= 0 || cluster_size <= 0 || cluster_count <= 0 || bitmapd_size_B <= 0 || bitmapi_size_B <= 0) {
+superblock *create_superblock(char *signature, int32_t disk_size, int32_t data_block_size, int32_t data_block_count, int32_t bitmapd_size_B, int32_t bitmapi_size_B) {
+    if (!signature || disk_size <= 0 || data_block_size <= 0 || data_block_count <= 0 || bitmapd_size_B <= 0 || bitmapi_size_B <= 0) {
         return NULL;
     }
 
@@ -19,8 +19,8 @@ superblock *create_superblock(char *signature, int32_t disk_size, int32_t cluste
     memset(sblock->signature, 0, sizeof(sblock->signature));
     strncpy(sblock->signature, signature, 12);
     sblock->disk_size = disk_size;
-    sblock->cluster_size = cluster_size;
-    sblock->cluster_count = cluster_count;
+    sblock->data_block_size = data_block_size;
+    sblock->data_block_count = data_block_count;
 
     // bitmapa dat. bloku
     sblock->bitmapd_start_address = sizeof(superblock);

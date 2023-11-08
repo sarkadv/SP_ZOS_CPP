@@ -4,10 +4,26 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
+#include <signal.h>
 #include "constants.h"
 #include "parser.h"
 #include "vfs.h"
 #include "commands.h"
+
+vfs *fs;
+
+void term(int signum)
+{
+    command_end(fs);
+}
+
+void reset_buffers(char *input, char *command, char *param1, char *param2) {
+    memset(input, 0, COMMAND_LENGTH);
+    memset(command, 0, STRING_LENGTH);
+    memset(param1, 0, STRING_LENGTH);
+    memset(param2, 0, STRING_LENGTH);
+}
 
 int vfs_exists(char *vfs) {
     FILE *file;
@@ -25,7 +41,14 @@ int main(int argc, char *argv[]) {
     char param1[STRING_LENGTH];   // prvni zadany adresar
     char param2[STRING_LENGTH];   // druhy zadany adresar
 
-    vfs *fs = (vfs*)malloc(sizeof(vfs));
+    fs = (vfs*)malloc(sizeof(vfs));
+
+    struct sigaction action;
+    memset(&action, 0, sizeof(struct sigaction));
+    action.sa_handler = term;
+    sigaction(SIGTERM, &action, NULL);
+
+    reset_buffers(input, command, param1, param2);
 
     if (argc < ARG_COUNT) {
         printf("Usage: \n");
@@ -43,6 +66,9 @@ int main(int argc, char *argv[]) {
         if (!read_vfs_from_file(fs)) {
             printf("VFS could not be loaded from file.\n");
         }
+        else {
+            printf("VFS was loaded.\n");
+        }
     }
 
     while (1) {
@@ -56,6 +82,8 @@ int main(int argc, char *argv[]) {
         if (!execute_command(command, param1, param2, fs)) {
             printf("Could not execute command.\n");
         }
+
+        reset_buffers(input, command, param1, param2);
     }
 }
 

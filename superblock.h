@@ -14,8 +14,8 @@ typedef struct {
     char signature[12];              //login autora FS
     //char volume_descriptor[251];    //popis vygenerovaného FS
     int32_t disk_size;              //celkova velikost VFS
-    int32_t cluster_size;           //velikost clusteru
-    int32_t cluster_count;          //pocet clusteru
+    int32_t data_block_size;           //velikost clusteru
+    int32_t data_block_count;          //pocet clusteru
     int32_t bitmapi_start_address;  //adresa pocatku bitmapy i-uzlů
     int32_t bitmapd_start_address;   //adresa pocatku bitmapy datových bloků
     int32_t inode_start_address;    //adresa pocatku  i-uzlů

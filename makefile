@@ -1,6 +1,6 @@
 CC=g++ -std=c++11
 CFLAGS=-Wall -pedantic
-OBJS=parser.o commands.o bitmap.o superblock.o inode.o cluster.o vfs.o
+OBJS=vfs.o parser.o commands.o bitmap.o superblock.o data_block.o inode.o directory.o file_handler.o
 EXE=vfs
 
 $(EXE): $(OBJS)
@@ -8,4 +8,5 @@ $(EXE): $(OBJS)
 
 .cpp.o:
 	$(CC) $(CFLAGS) -c $^
+
 

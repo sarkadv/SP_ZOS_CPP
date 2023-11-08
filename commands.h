@@ -27,5 +27,6 @@
 
 int execute_command(char *command, char *param1, char *param2, vfs *fs);
 int read_vfs_from_file(vfs *fs);
+int command_end(vfs *fs);
 
 #endif //SP_ZOS_CPP_COMMANDS_H

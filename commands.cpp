@@ -11,6 +11,7 @@
 #include "data_block.h"
 #include "parser.h"
 #include "constants.h"
+#include "file_handler.h"
 
 int command_help() {
     printf("--- Available commands ---\n");
@@ -36,31 +37,24 @@ int command_help() {
     return 1;
 }
 
-int command_end(vfs *fs) {
-    printf("Ending program.\n");
-    free(fs);
-    exit(EXIT_SUCCESS);
-    return 1;
-}
-
-inode *find_free_inode(vfs *fs) {
+int32_t find_free_inode(vfs *fs) {
     int i;
 
     if (!fs) {
-        return NULL;
+        return 0;
     }
 
     for (i = 0; i < INODE_COUNT; i++) {
         if (!get_bit(fs->bitmapi, i)) {
-            return fs->inodes[i];
+            return i;
         }
     }
 
-    return NULL;    // zadny prazdny i uzel
+    return 0;    // zadny prazdny i uzel
 }
 
-data_block **find_free_data_blocks(vfs *fs, int32_t required_blocks) {
-    data_block **blocks;
+int32_t *find_free_data_blocks(vfs *fs, int32_t required_blocks) {
+    int32_t *blocks;
     int i;
     int32_t found = 0;
 
@@ -68,11 +62,11 @@ data_block **find_free_data_blocks(vfs *fs, int32_t required_blocks) {
         return NULL;
     }
 
-    blocks = (data_block**)malloc(sizeof(data_block*)*required_blocks);
+    blocks = (int32_t*)malloc(sizeof(int32_t)*required_blocks);
 
-    for (i = 0; i < fs->superblock->cluster_count; i++) {
+    for (i = 0; i < fs->superblock->data_block_count; i++) {
         if (!get_bit(fs->bitmapd, i)) {
-            blocks[found] = fs->data_blocks[i];
+            blocks[found] = i;
             found++;
 
             if (found == required_blocks) {
@@ -106,7 +100,7 @@ int write_vfs_to_file(vfs *vfs) {
         fwrite(vfs->inodes[i], sizeof(inode), 1, fout);
     }
 
-    for (i = 0; i < vfs->superblock->cluster_count; i++) {
+    for (i = 0; i < vfs->superblock->data_block_count; i++) {
         fwrite(vfs->data_blocks[i], sizeof(data_block), 1, fout);
     }
 
@@ -138,7 +132,7 @@ int add_subdirectory_to_directory(vfs *fs, directory *parent_directory, director
         return 0;
     }
 
-    inode = fs->inodes[subdirectory->inode];
+    inode = fs->inodes[subdirectory->inode - 1];
 
     if (inode->isDirectory) {
         if (parent_directory->subdirectories == NULL) {
@@ -198,12 +192,73 @@ int add_file_to_directory(vfs *fs, directory *parent_directory, directory_item *
     return 1;
 }
 
+int remove_subdirectory_from_directory(vfs *fs, directory *parent_directory, directory_item *subdirectory) {
+    inode *inode;
+    directory_item *subitem;
+    bool removed = false;
+
+    if (!fs || !parent_directory || !subdirectory) {
+        return 0;
+    }
+
+    if (parent_directory->subdirectories == NULL) {
+        return 0;
+    }
+
+    inode = fs->inodes[subdirectory->inode - 1];
+
+    if (inode->isDirectory) {
+        subitem = parent_directory->subdirectories;
+
+        if (!strcmp(subitem->name, subdirectory->name)) {    // odstraneni ze zacatku
+            parent_directory->subdirectories = subitem->next;
+            free(subdirectory);
+            removed = true;
+        }
+        else {
+            while (subitem->next != NULL) {
+                if (!strcmp(subitem->next->name, subdirectory->name)) {
+                    subitem->next = subitem->next->next;
+                    free(subdirectory);
+                    removed = true;
+                    break;
+                }
+                else {
+                    subitem = subitem->next;
+                }
+            }
+        }
+    }
+    else {
+        return 0;
+    }
+
+    return removed;
+}
+
+int data_block_empty(data_block *block) {
+    int i;
+
+    if (!block) {
+        return 0;
+    }
+
+    for (i = 0; i < DATA_BLOCK_SIZE_B; i++) {
+        if (block->data[i] != '\0') {
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
 void read_directory(vfs *fs, inode *inode, directory *dir);
 
 void load_items_from_data_block(vfs *fs, directory *dir, data_block *block) {
     directory_item *loaded_directory_item;
     int32_t loaded_items = 0;
     directory *created_directory;
+    bool next;
 
     if (!fs || !dir || !block) {
         return;
@@ -211,56 +266,44 @@ void load_items_from_data_block(vfs *fs, directory *dir, data_block *block) {
 
     do {
         loaded_directory_item = (directory_item*)malloc(sizeof(directory_item));
-        memcpy(loaded_directory_item, block + loaded_items*sizeof(directory_item), sizeof(directory_item));
+        memcpy(loaded_directory_item, block->data + loaded_items*sizeof(directory_item), sizeof(directory_item));
         loaded_items++;
 
-        if (fs->inodes[loaded_directory_item->inode]->isDirectory) {    // nacetli jsme adresar
+        if (loaded_directory_item->next != NULL) {
+            next = true;
+        }
+        else {
+            next = false;
+        }
+
+        if (fs->inodes[loaded_directory_item->inode - 1]->isDirectory) {    // nacetli jsme adresar
             created_directory = create_directory(NULL, NULL, dir, loaded_directory_item);
             fs->all_directories[loaded_directory_item->inode] = created_directory;
 
             add_subdirectory_to_directory(fs, dir, loaded_directory_item);
-            read_directory(fs, fs->inodes[loaded_directory_item->inode], created_directory);
+            read_directory(fs, fs->inodes[loaded_directory_item->inode - 1], created_directory);
         }
         else {  // nacetli jsme klasicky soubor
             add_file_to_directory(fs, dir, loaded_directory_item);
         }
-    } while (loaded_directory_item->next != NULL);
+    } while (next);
 }
 
+/**
+ * Rekurzivne nacte directory_itemy z i-uzlu predstavujiciho adresar.
+ * Adresare mohou zabrat pouze 1 cluster = datovy blok.
+ * @param fs        filesystem
+ * @param inode     i uzel
+ * @param dir       adresar
+ */
 void read_directory(vfs *fs, inode *inode, directory *dir) {
-    data_block *current_data_block;
-
-    if (!fs || !inode || !dir) {
+     if (!fs || !inode || !dir) {
         return;
     }
 
     if (inode->direct1 != 0) {
-        current_data_block = fs->data_blocks[inode->direct1];
-        if (inode->file_size != 0) {     // pro neprazdny adresar
-            load_items_from_data_block(fs, dir, current_data_block);
-        }
-
-        if (inode->direct2 != 0) {
-            load_items_from_data_block(fs, dir, current_data_block);
-
-            if (inode->direct3 != 0) {
-                load_items_from_data_block(fs, dir, current_data_block);
-
-                if (inode->direct4 != 0) {
-                    load_items_from_data_block(fs, dir, current_data_block);
-
-                    if (inode->direct5 != 0) {
-                        load_items_from_data_block(fs, dir, current_data_block);
-
-                        if (inode->indirect1 != 0) {
-
-                            if (inode->indirect2 != 0) {
-
-                            }
-                        }
-                    }
-                }
-            }
+        if (!data_block_empty(fs->data_blocks[inode->direct1 - 1])) {     // pro neprazdny adresar
+            load_items_from_data_block(fs, dir, fs->data_blocks[inode->direct1 - 1]);
         }
     }
 }
@@ -295,7 +338,7 @@ int read_vfs_from_file(vfs *fs) {
 
     fread(sblock, sizeof(superblock), 1, fin);
 
-    bitmapd = create_bitmap(sblock->cluster_count);
+    bitmapd = create_bitmap(sblock->data_block_count);
     bitmapi = create_bitmap(INODE_COUNT);
 
     fread(bitmapd->array, sizeof(bitmapd->array_size_B), 1, fin);
@@ -308,9 +351,9 @@ int read_vfs_from_file(vfs *fs) {
         fs->inodes[i] = create_inode(ID_ITEM_FREE);
     }
 
-    fs->data_blocks = (data_block **)calloc(sblock->cluster_count, sizeof(data_block*));
+    fs->data_blocks = (data_block **)calloc(sblock->data_block_count, sizeof(data_block*));
 
-    for (i = 0; i < sblock->cluster_count; i++) {
+    for (i = 0; i < sblock->data_block_count; i++) {
         fs->data_blocks[i] = create_data_block();
     }
 
@@ -318,7 +361,7 @@ int read_vfs_from_file(vfs *fs) {
         fread(fs->inodes[i], sizeof(inode), 1, fin);
     }
 
-    for (i = 0; i < fs->superblock->cluster_count; i++) {
+    for (i = 0; i < fs->superblock->data_block_count; i++) {
         fread(fs->data_blocks[i], sizeof(data_block), 1, fin);
     }
 
@@ -424,7 +467,7 @@ int command_list(vfs *fs, char *path) {
         return 0;
     }
 
-    dir = parse_path(fs, path);
+    dir = parse_path(fs, path, false);
 
     if (!dir) {
         printf("Path not found.\n");
@@ -452,41 +495,34 @@ int command_list(vfs *fs, char *path) {
 }
 
 char *find_absolute_path(directory *dir) {
-    char *path;
+    std::vector<directory*> path;
     char *reversed;
     directory *current_directory;
-    int i, j;
-    char *delimiter = (char*)"/\0";
+    int i;
+    char *delimiter = (char*)PATH_DELIMITER;
 
     if (!dir) {
         return NULL;
     }
 
-    path = (char*)calloc(sizeof(char), COMMAND_LENGTH);
     current_directory = dir;
 
     while (current_directory != NULL) {
-        strcat(path, current_directory->this_item->name);
-        strcat(path, delimiter);
-
+        path.push_back(current_directory);
         current_directory = current_directory->parent;
     }
 
     reversed = (char*)calloc(sizeof(char), COMMAND_LENGTH);
 
-    i = 0;
-    j = strlen(path) - 1;
+    strcat(reversed, delimiter);
 
-    while (i <= strlen(path) - 1)
-    {
-        reversed[i] = path[j];
-        i++;
-        j--;
+    for (i = path.size() - 2; i >= 0; i--) {
+        strcat(reversed, path[i]->this_item->name);
+
+        if (i != 0) {
+            strcat(reversed, delimiter);
+        }
     }
-
-    reversed[strlen(path)] = '\0';
-
-    free(path);
 
     return reversed;
 
@@ -513,7 +549,7 @@ int command_change_dir(vfs *fs, char *path) {
         return 0;
     }
 
-    result_directory = parse_path(fs, path);
+    result_directory = parse_path(fs, path, false);
 
     if (!result_directory) {
         printf("Path not found.\n");
@@ -523,6 +559,159 @@ int command_change_dir(vfs *fs, char *path) {
     fs->current_directory = result_directory;
 
     printf("OK\n");
+    return 1;
+}
+
+int count_directory_contents(vfs *fs, directory *dir) {
+    int32_t sum = 0;
+    directory_item *current_file;
+    directory_item *current_subdirectory;
+
+    if (!fs || !dir) {
+        return 0;
+    }
+
+    current_file = dir->files;
+    current_subdirectory = dir->subdirectories;
+
+    while (current_file != NULL) {
+        sum++;
+        current_file = current_file->next;
+    }
+
+    while (current_subdirectory != NULL) {
+        sum++;
+        current_subdirectory = current_subdirectory->next;
+    }
+
+    return sum;
+}
+
+int command_make_dir(vfs *fs, char *created_dir_path) {
+    directory *parent_dir;
+    char *created_dir_name;
+    int32_t free_inode;
+    int32_t *free_data_blocks;
+    int32_t free_data_block;
+    directory_item *created_directory_item;
+    directory *created_directory;
+    inode *parent_dir_inode;
+    data_block *parent_dir_data_block;
+
+    if (!fs || !created_dir_path) {
+        return 0;
+    }
+
+    if (parse_path(fs, created_dir_path, false) != NULL) {     // adresar uz existuje
+        printf("Directory already exists.\n");
+        return 0;
+    }
+
+    parent_dir = parse_path(fs, created_dir_path, true);
+
+    if (!parent_dir) {
+        printf("Path not found.\n");
+        return 0;
+    }
+
+    if (count_directory_contents(fs, parent_dir) >= MAX_DIRECTORY_ITEMS) {
+        printf("Directory has reached the maximum count of items.\n");
+        return 0;
+    }
+
+    free_inode = find_free_inode(fs);
+
+    if (free_inode == 0) {
+        printf("No free i-nodes have been found.\n");
+    }
+
+    free_data_blocks = find_free_data_blocks(fs, 1);
+
+    if (!free_data_blocks) {
+        printf("Not enough free data blocks have been found.\n");
+    }
+
+    free_data_block = free_data_blocks[0];
+    created_dir_name = get_last_part_of_path(fs, created_dir_path);
+
+    created_directory_item = create_directory_item(free_inode + 1, created_dir_name, NULL);
+    created_directory = create_directory(NULL, NULL, parent_dir, created_directory_item);
+
+    fs->inodes[free_inode]->nodeid = free_inode + 1;
+    fs->inodes[free_inode]->isDirectory = true;
+    fs->inodes[free_inode]->direct1 = free_data_block + 1;
+
+    set_bit(fs->bitmapi, free_inode);
+    set_bit(fs->bitmapd, free_data_block);
+
+    fs->all_directories[fs->inodes[free_inode]->nodeid] = created_directory;
+    add_subdirectory_to_directory(fs, parent_dir, created_directory_item);
+
+    parent_dir_inode = fs->inodes[parent_dir->this_item->inode - 1];
+    parent_dir_data_block = fs->data_blocks[parent_dir_inode->direct1 - 1];
+
+    // zapis do fs->data_blocks
+    write_dir_items_to_data_block(parent_dir_data_block, parent_dir->subdirectories, parent_dir->files);
+
+    printf("OK\n");
+    return 1;
+}
+
+int command_remove_dir(vfs *fs, char *removed_dir_path) {
+    directory *parent_dir;
+    directory *removed_dir;
+    int32_t freed_inode_index;
+    int32_t freed_data_block_index;
+    directory_item *removed_directory_item;
+    inode *parent_dir_inode;
+    data_block *parent_dir_data_block;
+
+    if (!fs || !removed_dir_path) {
+        return 0;
+    }
+
+    removed_dir = parse_path(fs, removed_dir_path, false);
+
+    if (!removed_dir) {
+        printf("Directory not found.\n");
+        return 0;
+    }
+
+    if (count_directory_contents(fs, removed_dir) > 0) {
+        printf("Directory not empty.\n");
+        return 0;
+    }
+
+    parent_dir = removed_dir->parent;
+    removed_directory_item = removed_dir->this_item;
+    freed_inode_index = removed_dir->this_item->inode - 1;
+    freed_data_block_index = fs->inodes[freed_inode_index]->direct1 - 1;
+
+    remove_subdirectory_from_directory(fs, parent_dir, removed_directory_item);
+    fs->all_directories[fs->inodes[freed_inode_index]->nodeid] = NULL;
+
+    fs->inodes[freed_inode_index]->nodeid = ID_ITEM_FREE;
+    fs->inodes[freed_inode_index]->isDirectory = false;
+    fs->inodes[freed_inode_index]->direct1 = 0;
+
+    clear_bit(fs->bitmapi, freed_inode_index);
+    clear_bit(fs->bitmapd, freed_data_block_index);
+
+    parent_dir_inode = fs->inodes[parent_dir->this_item->inode - 1];
+    parent_dir_data_block = fs->data_blocks[parent_dir_inode->direct1 - 1];
+
+    // zapis do fs->data_blocks
+    write_dir_items_to_data_block(parent_dir_data_block, parent_dir->subdirectories, parent_dir->files);
+
+    printf("OK\n");
+    return 1;
+}
+
+int command_end(vfs *fs) {
+    printf("Ending program.\n");
+    write_vfs_to_file(fs);
+    free(fs);
+    exit(EXIT_SUCCESS);
     return 1;
 }
 
@@ -538,51 +727,121 @@ int execute_command(char *command, char *param1, char *param2, vfs *fs) {
         return command_end(fs);
     }
     else if (strcmp(COMMAND_COPY, command) == 0) {
-        printf("copy\n");
+        if (fs->loaded) {
+            printf("copy\n");
+        }
+        else {
+            return 0;
+        }
     }
     else if (strcmp(COMMAND_MOVE, command) == 0) {
-        printf("move\n");
+        if (fs->loaded) {
+            printf("move\n");
+        }
+        else {
+            return 0;
+        }
     }
     else if (strcmp(COMMAND_REMOVE, command) == 0) {
-        printf("remove\n");
+        if (fs->loaded) {
+            printf("remove\n");
+        }
+        else {
+            return 0;
+        }
     }
     else if (strcmp(COMMAND_MAKE_DIR, command) == 0) {
-        printf("make dir\n");
+        if (fs->loaded) {
+            return command_make_dir(fs, param1);
+        }
+        else {
+            return 0;
+        }
     }
     else if (strcmp(COMMAND_REMOVE_DIR, command) == 0) {
-        printf("remove dir\n");
+        if (fs->loaded) {
+            return command_remove_dir(fs, param1);
+        }
+        else {
+            return 0;
+        }
     }
     else if (strcmp(COMMAND_LIST, command) == 0) {
-        return command_list(fs, param1);
+        if (fs->loaded) {
+            return command_list(fs, param1);
+        }
+        else {
+            return 0;
+        }
     }
     else if (strcmp(COMMAND_CONCATENATE, command) == 0) {
-        printf("concatenate\n");
+        if (fs->loaded) {
+            printf("concatenate\n");
+        }
+        else {
+            return 0;
+        }
     }
     else if (strcmp(COMMAND_CHANGE_DIR, command) == 0) {
-        return command_change_dir(fs, param1);
+        if (fs->loaded) {
+            return command_change_dir(fs, param1);
+        }
+        else {
+            return 0;
+        }
     }
     else if (strcmp(COMMAND_PRINT_WORK_DIR, command) == 0) {
-        return command_print_work_dir(fs);
+        if (fs->loaded) {
+            return command_print_work_dir(fs);
+        }
+        else {
+            return 0;
+        }
     }
     else if (strcmp(COMMAND_INFO, command) == 0) {
-        printf("info\n");
+        if (fs->loaded) {
+            printf("info\n");
+        }
+        else {
+            return 0;
+        }
     }
     else if (strcmp(COMMAND_IN_COPY, command) == 0) {
-        printf("input copy\n");
+        if (fs->loaded) {
+            printf("input copy\n");
+        }
+        else {
+            return 0;
+        }
     }
     else if (strcmp(COMMAND_OUT_COPY, command) == 0) {
-        printf("output copy\n");
+        if (fs->loaded) {
+            printf("output copy\n");
+        }
+        else {
+            return 0;
+        }
     }
     else if (strcmp(COMMAND_LOAD, command) == 0) {
-        printf("load\n");
+        if (fs->loaded) {
+            printf("load\n");
+        }
+        else {
+            return 0;
+        }
     }
     else if (strcmp(COMMAND_FORMAT, command) == 0) {
         return command_format(param1, fs);
     }
     else if (strcmp(COMMAND_SYMB_LINK, command) == 0) {
-        printf("symbolic link\n");
+        if (fs->loaded) {
+            printf("symbolic link\n");
+        }
+        else {
+            return 0;
+        }
     }
     else {
-        printf("Unknown command.\n");
+        printf("Unknown command. Use the command *help* to list available commands.\n");
     }
 }

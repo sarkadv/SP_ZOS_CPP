@@ -6,6 +6,7 @@
 #define SP_ZOS_CPP_DIRECTORY_H
 
 #define FILENAME_LENGTH 12
+#define DATA_BLOCK_SIZE_B 1000
 
 #include <cinttypes>
 
@@ -21,6 +22,8 @@ typedef struct dir {
     dir *parent;
     directory_item *this_item;
 } directory;
+
+#define MAX_DIRECTORY_ITEMS DATA_BLOCK_SIZE_B/sizeof(directory_item)
 
 directory *create_directory(directory_item *files, directory_item *subdirectories, directory *parent, directory_item *this_item);
 
