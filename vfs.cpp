@@ -67,7 +67,7 @@ int main(int argc, char *argv[]) {
             printf("VFS could not be loaded from file.\n");
         }
         else {
-            printf("VFS was loaded.\n");
+            printf("VFS %s was loaded.\n", fs->name);
         }
     }
 

@@ -11,7 +11,6 @@
 #include "data_block.h"
 #include "parser.h"
 #include "constants.h"
-#include "file_handler.h"
 
 int command_help() {
     printf("--- Available commands ---\n");
@@ -78,37 +77,6 @@ int32_t *find_free_data_blocks(vfs *fs, int32_t required_blocks) {
     return NULL;    // nedostatek prazdnych bloku
 }
 
-int write_vfs_to_file(vfs *vfs) {
-    FILE* fout;
-    int i;
-
-    if (!vfs) {
-        return 0;
-    }
-
-    fout = fopen(vfs->name, "w");
-
-    if (!fout) {
-        return 0;
-    }
-
-    fwrite(vfs->superblock, sizeof(superblock), 1, fout);
-    fwrite(vfs->bitmapd->array, sizeof(vfs->bitmapd->array_size_B), 1, fout);
-    fwrite(vfs->bitmapi->array, sizeof(vfs->bitmapi->array_size_B), 1, fout);
-
-    for (i = 0; i < INODE_COUNT; i++) {
-        fwrite(vfs->inodes[i], sizeof(inode), 1, fout);
-    }
-
-    for (i = 0; i < vfs->superblock->data_block_count; i++) {
-        fwrite(vfs->data_blocks[i], sizeof(data_block), 1, fout);
-    }
-
-    fclose(fout);
-
-    return 1;
-}
-
 void create_root_directory(vfs *vfs) {
     directory_item *root_item = create_directory_item(1, (char*)"", NULL);
     vfs->root_directory = create_directory(NULL, NULL, NULL, root_item);
@@ -122,6 +90,32 @@ void create_root_directory(vfs *vfs) {
     set_bit(vfs->bitmapd, 0);
 
     vfs->current_directory = vfs->root_directory;
+}
+
+directory_item *find_item_in_directory(vfs *fs, directory *parent_dir, char *item_name) {
+    directory_item *subitem;
+
+    if (!fs || !parent_dir || !item_name) {
+        return NULL;
+    }
+
+    subitem = parent_dir->subdirectories;
+    while (subitem != NULL) {
+        if (!strcmp(subitem->name, item_name)) {
+            return subitem;
+        }
+        subitem = subitem->next;
+    }
+
+    subitem = parent_dir->files;
+    while (subitem != NULL) {
+        if (!strcmp(subitem->name, item_name)) {
+            return subitem;
+        }
+        subitem = subitem->next;
+    }
+
+    return NULL;
 }
 
 int add_subdirectory_to_directory(vfs *fs, directory *parent_directory, directory_item *subdirectory) {
@@ -234,22 +228,6 @@ int remove_subdirectory_from_directory(vfs *fs, directory *parent_directory, dir
     }
 
     return removed;
-}
-
-int data_block_empty(data_block *block) {
-    int i;
-
-    if (!block) {
-        return 0;
-    }
-
-    for (i = 0; i < DATA_BLOCK_SIZE_B; i++) {
-        if (block->data[i] != '\0') {
-            return 0;
-        }
-    }
-
-    return 1;
 }
 
 void read_directory(vfs *fs, inode *inode, directory *dir);
@@ -374,6 +352,37 @@ int read_vfs_from_file(vfs *fs) {
     }
 
     fs->loaded = true;
+
+    return 1;
+}
+
+int write_vfs_to_file(vfs *vfs) {
+    FILE* fout;
+    int i;
+
+    if (!vfs) {
+        return 0;
+    }
+
+    fout = fopen(vfs->name, "w");
+
+    if (!fout) {
+        return 0;
+    }
+
+    fwrite(vfs->superblock, sizeof(superblock), 1, fout);
+    fwrite(vfs->bitmapd->array, sizeof(vfs->bitmapd->array_size_B), 1, fout);
+    fwrite(vfs->bitmapi->array, sizeof(vfs->bitmapi->array_size_B), 1, fout);
+
+    for (i = 0; i < INODE_COUNT; i++) {
+        fwrite(vfs->inodes[i], sizeof(inode), 1, fout);
+    }
+
+    for (i = 0; i < vfs->superblock->data_block_count; i++) {
+        fwrite(vfs->data_blocks[i], sizeof(data_block), 1, fout);
+    }
+
+    fclose(fout);
 
     return 1;
 }
@@ -562,31 +571,6 @@ int command_change_dir(vfs *fs, char *path) {
     return 1;
 }
 
-int count_directory_contents(vfs *fs, directory *dir) {
-    int32_t sum = 0;
-    directory_item *current_file;
-    directory_item *current_subdirectory;
-
-    if (!fs || !dir) {
-        return 0;
-    }
-
-    current_file = dir->files;
-    current_subdirectory = dir->subdirectories;
-
-    while (current_file != NULL) {
-        sum++;
-        current_file = current_file->next;
-    }
-
-    while (current_subdirectory != NULL) {
-        sum++;
-        current_subdirectory = current_subdirectory->next;
-    }
-
-    return sum;
-}
-
 int command_make_dir(vfs *fs, char *created_dir_path) {
     directory *parent_dir;
     char *created_dir_name;
@@ -614,7 +598,7 @@ int command_make_dir(vfs *fs, char *created_dir_path) {
         return 0;
     }
 
-    if (count_directory_contents(fs, parent_dir) >= MAX_DIRECTORY_ITEMS) {
+    if (count_directory_contents(parent_dir) >= MAX_DIRECTORY_ITEMS) {
         printf("Directory has reached the maximum count of items.\n");
         return 0;
     }
@@ -677,7 +661,7 @@ int command_remove_dir(vfs *fs, char *removed_dir_path) {
         return 0;
     }
 
-    if (count_directory_contents(fs, removed_dir) > 0) {
+    if (count_directory_contents(removed_dir) > 0) {
         printf("Directory not empty.\n");
         return 0;
     }
@@ -706,6 +690,69 @@ int command_remove_dir(vfs *fs, char *removed_dir_path) {
     printf("OK\n");
     return 1;
 }
+
+
+int command_info(vfs *fs, char *path) {
+    directory *parent_dir;
+    directory_item *item;
+    char *item_name;
+    inode *inode;
+
+    if (!fs || !path) {
+        return 0;
+    }
+
+    parent_dir = parse_path(fs, path, true);
+
+    if (!parent_dir) {
+        printf("Path not found.\n");
+        return 0;
+    }
+
+    item_name = get_last_part_of_path(fs, path);
+    item = find_item_in_directory(fs, parent_dir, item_name);
+    free(item_name);
+
+    if (!item) {
+        printf("File not found.\n");
+        return 0;
+    }
+
+    inode = fs->inodes[item->inode - 1];
+
+    printf("* name: %s - size: %dB - i-node ID: %d *\n", item->name, inode->file_size, inode->nodeid);
+    printf("* used data blocks IDs *\n");
+    printf("\t- direct: ");
+
+    if (inode->direct1 != 0) {
+        printf("%d ", inode->direct1);
+    }
+    if (inode->direct2 != 0) {
+        printf("%d ", inode->direct2);
+    }
+    if (inode->direct3 != 0) {
+        printf("%d ", inode->direct3);
+    }
+    if (inode->direct4 != 0) {
+        printf("%d ", inode->direct4);
+    }
+    if (inode->direct5 != 0) {
+        printf("%d ", inode->direct5);
+    }
+    printf("\n");
+
+    printf("\t- indirect: ");
+    if (inode->indirect1 != 0) {
+        printf("%d ", inode->indirect1);
+    }
+    if (inode->indirect2 != 0) {
+        printf("%d ", inode->indirect2);
+    }
+    printf("\n");
+
+    return 1;
+}
+
 
 int command_end(vfs *fs) {
     printf("Ending program.\n");
@@ -800,7 +847,7 @@ int execute_command(char *command, char *param1, char *param2, vfs *fs) {
     }
     else if (strcmp(COMMAND_INFO, command) == 0) {
         if (fs->loaded) {
-            printf("info\n");
+            return command_info(fs, param1);
         }
         else {
             return 0;
@@ -843,5 +890,6 @@ int execute_command(char *command, char *param1, char *param2, vfs *fs) {
     }
     else {
         printf("Unknown command. Use the command *help* to list available commands.\n");
+        return 0;
     }
 }

@@ -15,5 +15,6 @@ typedef struct {
 
 data_block *create_data_block();
 int write_dir_items_to_data_block(data_block *block, directory_item *subdirectories, directory_item *files);
+int data_block_empty(data_block *block);
 
 #endif //SP_ZOS_CPP_DATA_BLOCK_H

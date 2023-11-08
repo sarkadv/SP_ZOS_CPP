@@ -26,7 +26,7 @@ typedef struct dir {
 #define MAX_DIRECTORY_ITEMS DATA_BLOCK_SIZE_B/sizeof(directory_item)
 
 directory *create_directory(directory_item *files, directory_item *subdirectories, directory *parent, directory_item *this_item);
-
 directory_item *create_directory_item(int32_t inode, char *name, directory_item *next);
+int count_directory_contents(directory *dir);
 
 #endif //SP_ZOS_CPP_DIRECTORY_H

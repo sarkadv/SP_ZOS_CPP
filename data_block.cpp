@@ -38,3 +38,19 @@ int write_dir_items_to_data_block(data_block *block, directory_item *subdirector
 
     return 1;
 }
+
+int data_block_empty(data_block *block) {
+    int i;
+
+    if (!block) {
+        return 0;
+    }
+
+    for (i = 0; i < DATA_BLOCK_SIZE_B; i++) {
+        if (block->data[i] != '\0') {
+            return 0;
+        }
+    }
+
+    return 1;
+}

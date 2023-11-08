@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include "file_handler.h"
 
+
 int update_data_block(vfs *fs, int32_t block_index) {
     FILE* fout;
 

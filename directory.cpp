@@ -33,3 +33,28 @@ directory_item *create_directory_item(int32_t inode, char *name, directory_item 
 
     return dir_item;
 }
+
+int count_directory_contents(directory *dir) {
+    int32_t sum = 0;
+    directory_item *current_file;
+    directory_item *current_subdirectory;
+
+    if (!dir) {
+        return 0;
+    }
+
+    current_file = dir->files;
+    current_subdirectory = dir->subdirectories;
+
+    while (current_file != NULL) {
+        sum++;
+        current_file = current_file->next;
+    }
+
+    while (current_subdirectory != NULL) {
+        sum++;
+        current_subdirectory = current_subdirectory->next;
+    }
+
+    return sum;
+}
