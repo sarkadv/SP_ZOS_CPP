@@ -624,6 +624,7 @@ int command_make_dir(vfs *fs, char *created_dir_path) {
     fs->inodes[free_inode]->nodeid = free_inode + 1;
     fs->inodes[free_inode]->isDirectory = true;
     fs->inodes[free_inode]->direct1 = free_data_block + 1;
+    fs->inodes[free_inode]->file_size = DATA_BLOCK_SIZE_B;
 
     set_bit(fs->bitmapi, free_inode);
     set_bit(fs->bitmapd, free_data_block);
@@ -636,6 +637,11 @@ int command_make_dir(vfs *fs, char *created_dir_path) {
 
     // zapis do fs->data_blocks
     write_dir_items_to_data_block(parent_dir_data_block, parent_dir->subdirectories, parent_dir->files);
+
+    if (!write_vfs_to_file(fs)) {
+        printf("There was an error writing to the VFS file.\n");
+        return 0;
+    }
 
     printf("OK\n");
     return 1;
@@ -674,9 +680,7 @@ int command_remove_dir(vfs *fs, char *removed_dir_path) {
     remove_subdirectory_from_directory(fs, parent_dir, removed_directory_item);
     fs->all_directories[fs->inodes[freed_inode_index]->nodeid] = NULL;
 
-    fs->inodes[freed_inode_index]->nodeid = ID_ITEM_FREE;
-    fs->inodes[freed_inode_index]->isDirectory = false;
-    fs->inodes[freed_inode_index]->direct1 = 0;
+    memset(fs->inodes[freed_inode_index], 0, sizeof(inode));
 
     clear_bit(fs->bitmapi, freed_inode_index);
     clear_bit(fs->bitmapd, freed_data_block_index);
@@ -686,6 +690,11 @@ int command_remove_dir(vfs *fs, char *removed_dir_path) {
 
     // zapis do fs->data_blocks
     write_dir_items_to_data_block(parent_dir_data_block, parent_dir->subdirectories, parent_dir->files);
+
+    if (!write_vfs_to_file(fs)) {
+        printf("There was an error writing to the VFS file.\n");
+        return 0;
+    }
 
     printf("OK\n");
     return 1;
@@ -756,7 +765,6 @@ int command_info(vfs *fs, char *path) {
 
 int command_end(vfs *fs) {
     printf("Ending program.\n");
-    write_vfs_to_file(fs);
     free(fs);
     exit(EXIT_SUCCESS);
     return 1;

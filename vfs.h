@@ -19,7 +19,7 @@ typedef struct {
     bitmap *bitmapd;
     directory *root_directory;
     directory *current_directory;
-    directory *all_directories[INODE_COUNT];    // na all_directories[i] je adresar, ktery odpovida inode = i
+    directory *all_directories[INODE_COUNT + 1];    // na all_directories[i] je adresar, ktery odpovida inode = i
     inode *inodes[INODE_COUNT];
     data_block **data_blocks;
 } vfs;
