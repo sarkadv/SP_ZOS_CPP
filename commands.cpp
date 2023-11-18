@@ -232,6 +232,50 @@ int remove_subdirectory_from_directory(vfs *fs, directory *parent_directory, dir
     return removed;
 }
 
+int remove_file_from_directory(vfs *fs, directory *parent_directory, directory_item *file) {
+    inode *inode;
+    directory_item *subitem;
+    bool removed = false;
+
+    if (!fs || !parent_directory || !file) {
+        return 0;
+    }
+
+    if (parent_directory->files == NULL) {
+        return 0;
+    }
+
+    inode = fs->inodes[file->inode - 1];
+
+    if (!inode->isDirectory) {
+        subitem = parent_directory->files;
+
+        if (!strcmp(subitem->name, file->name)) {    // odstraneni ze zacatku
+            parent_directory->files = subitem->next;
+            free(file);
+            removed = true;
+        }
+        else {
+            while (subitem->next != NULL) {
+                if (!strcmp(subitem->next->name, file->name)) {
+                    subitem->next = subitem->next->next;
+                    free(file);
+                    removed = true;
+                    break;
+                }
+                else {
+                    subitem = subitem->next;
+                }
+            }
+        }
+    }
+    else {
+        return 0;
+    }
+
+    return removed;
+}
+
 void read_directory(vfs *fs, inode *inode, directory *dir);
 
 void load_items_from_data_block(vfs *fs, directory *dir, data_block *block) {
@@ -1459,6 +1503,132 @@ int command_out_copy(vfs *fs, char *fs_file_path, char *disk_file_path) {
     if (indirect2_blocks) {
         free(indirect2_blocks);
     }
+
+    printf("OK\n");
+    return 1;
+}
+
+int command_remove_file(vfs *fs, char *path) {
+    directory *parent_dir;
+    char *filename;
+    directory_item *file_to_remove;
+    int32_t *indirect1_blocks = NULL;
+    int32_t indirect1_blocks_count = 0;
+    int32_t *indirect2_blocks = NULL;
+    int32_t indirect2_blocks_count = 0;
+    inode *freed_inode;
+    int32_t i;
+    int32_t freed_inode_index;
+    inode *parent_dir_inode;
+    data_block *parent_dir_data_block;
+
+    if (!fs || !path) {
+        return 0;
+    }
+
+    parent_dir = parse_path(fs, path, true);
+
+    if (!parent_dir) {
+        printf("File not found.\n");
+        return 0;
+    }
+
+    filename = get_last_part_of_path(fs, path);
+    file_to_remove = find_diritem_in_dir_by_name(parent_dir, filename);
+
+    if (!file_to_remove) {
+        printf("File not found.\n");
+        return 0;
+    }
+
+    freed_inode = fs->inodes[file_to_remove->inode - 1];
+
+    if (freed_inode->direct1 != 0) {
+        memset(fs->data_blocks[freed_inode->direct1 - 1]->data, 0, DATA_BLOCK_SIZE_B);
+        clear_bit(fs->bitmapd, freed_inode->direct1 - 1);
+    }
+
+    if (freed_inode->direct2 != 0) {
+        memset(fs->data_blocks[freed_inode->direct2 - 1]->data, 0, DATA_BLOCK_SIZE_B);
+        clear_bit(fs->bitmapd, freed_inode->direct2 - 1);
+    }
+
+    if (freed_inode->direct3 != 0) {
+        memset(fs->data_blocks[freed_inode->direct3 - 1]->data, 0, DATA_BLOCK_SIZE_B);
+        clear_bit(fs->bitmapd, freed_inode->direct3 - 1);
+    }
+
+    if (freed_inode->direct4 != 0) {
+        memset(fs->data_blocks[freed_inode->direct4 - 1]->data, 0, DATA_BLOCK_SIZE_B);
+        clear_bit(fs->bitmapd, freed_inode->direct4 - 1);
+    }
+
+    if (freed_inode->direct5 != 0) {
+        memset(fs->data_blocks[freed_inode->direct5 - 1]->data, 0, DATA_BLOCK_SIZE_B);
+        clear_bit(fs->bitmapd, freed_inode->direct5 - 1);
+    }
+
+    if (freed_inode->indirect1 != 0) {
+        indirect1_blocks = find_all_indirect1_data_blocks(fs->data_blocks[freed_inode->indirect1 - 1], &indirect1_blocks_count);
+
+        for (i = 0; i < indirect1_blocks_count; i++) {
+            memset(fs->data_blocks[indirect1_blocks[i] - 1]->data, 0, DATA_BLOCK_SIZE_B);
+            clear_bit(fs->bitmapd, indirect1_blocks[i] - 1);
+        }
+
+        memset(fs->data_blocks[freed_inode->indirect1 - 1]->data, 0, DATA_BLOCK_SIZE_B);
+        clear_bit(fs->bitmapd, freed_inode->indirect1 - 1);
+    }
+
+    indirect1_blocks_count = 0;
+
+    if (freed_inode->indirect2 != 0) {
+        indirect2_blocks = find_all_indirect2_data_blocks(fs, fs->data_blocks[freed_inode->indirect2 - 1], &indirect2_blocks_count);
+
+        for (i = 0; i < indirect2_blocks_count; i++) {
+            memset(fs->data_blocks[indirect2_blocks[i] - 1]->data, 0, DATA_BLOCK_SIZE_B);
+            clear_bit(fs->bitmapd, indirect2_blocks[i] - 1);
+        }
+
+        indirect1_blocks = find_all_indirect1_data_blocks(fs->data_blocks[freed_inode->indirect2 - 1], &indirect1_blocks_count);
+
+        for (i = 0; i < indirect1_blocks_count; i++) {
+            memset(fs->data_blocks[indirect1_blocks[i] - 1]->data, 0, DATA_BLOCK_SIZE_B);
+            clear_bit(fs->bitmapd, indirect1_blocks[i] - 1);
+        }
+
+        memset(fs->data_blocks[freed_inode->indirect2 - 1]->data, 0, DATA_BLOCK_SIZE_B);
+        clear_bit(fs->bitmapd, freed_inode->indirect2 - 1);
+    }
+
+    freed_inode_index = freed_inode->nodeid - 1;
+
+    remove_file_from_directory(fs, parent_dir, file_to_remove);
+
+    memset(fs->inodes[freed_inode_index], 0, sizeof(inode));
+
+    clear_bit(fs->bitmapi, freed_inode_index);
+
+    parent_dir_inode = fs->inodes[parent_dir->this_item->inode - 1];
+    parent_dir_data_block = fs->data_blocks[parent_dir_inode->direct1 - 1];
+
+    // zapis do fs->data_blocks
+    write_dir_items_to_data_block(parent_dir_data_block, parent_dir->subdirectories, parent_dir->files);
+
+    if (!write_vfs_to_file(fs)) {
+        printf("There was an error writing to the VFS file.\n");
+        return 0;
+    }
+
+    if (indirect1_blocks != NULL) {
+        free(indirect1_blocks);
+    }
+
+    if (indirect2_blocks != NULL) {
+        free(indirect2_blocks);
+    }
+
+    free(filename);
 
     printf("OK\n");
     return 1;
