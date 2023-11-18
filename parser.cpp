@@ -49,6 +49,7 @@ directory *parse_path(vfs *fs, char *input, bool without_last_part) {
     char *delimiter;
     char *token;
     bool found;
+    char *input_copy;
 
     if (!fs) {
         return NULL;
@@ -58,7 +59,10 @@ directory *parse_path(vfs *fs, char *input, bool without_last_part) {
         return fs->current_directory;
     }
 
-    if (input[0] == '/') {  // absolutni cesta
+    input_copy = (char*)malloc(strlen(input)*sizeof(char));
+    strcpy(input_copy, input);
+
+    if (input_copy[0] == '/') {  // absolutni cesta
         current_directory = fs->root_directory;
     }
     else {  // relativni cesta
@@ -67,7 +71,7 @@ directory *parse_path(vfs *fs, char *input, bool without_last_part) {
 
     delimiter = (char*)PATH_DELIMITER;
 
-    token = strtok(input, delimiter);
+    token = strtok(input_copy, delimiter);
 
     // pokud chceme parsovat i posledni cast cesty, staci ze token neni NULL
     // pokud nechceme parsovat posledni cast cesty, cyklus se zastavi kdyz cesta uz nebude obsahovat /
@@ -104,27 +108,30 @@ directory *parse_path(vfs *fs, char *input, bool without_last_part) {
         token = strtok(NULL, delimiter);
     }
 
+    free(input_copy);
+
     return current_directory;
 }
 
 char *get_last_part_of_path(vfs *fs, char *input) {
     char *result;
-    char *delimiter;
-    char *token;
+    char *last_found;
+    int32_t last_found_index;
 
     if (!fs || !input) {
         return NULL;
     }
 
-    delimiter = (char*)PATH_DELIMITER;
-    token = strtok(input, delimiter);
     result = (char*)calloc(FILENAME_LENGTH, sizeof(char));
+    last_found = strrchr(input, '/');
 
-    while (token != NULL && strstr(token, delimiter)) {
-        token = strtok(NULL, delimiter);
+    if (!last_found) {
+        strncpy(result, input, FILENAME_LENGTH);
     }
-
-    strncpy(result, token, FILENAME_LENGTH);
+    else {
+        last_found_index = last_found - input + 1;
+        strncpy(result, input + last_found_index, FILENAME_LENGTH);
+    }
 
     return result;
 }

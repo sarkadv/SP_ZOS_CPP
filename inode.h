@@ -8,6 +8,7 @@
 #include <cinttypes>
 
 #define INODE_COUNT 1000
+#define DIRECT_REFERENCES_COUNT 5
 
 const int32_t ID_ITEM_FREE = 0;
 

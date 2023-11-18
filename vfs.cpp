@@ -36,10 +36,10 @@ int vfs_exists(char *vfs) {
 }
 
 int main(int argc, char *argv[]) {
-    char input[COMMAND_LENGTH];     // aktualni uzivatelsky input
-    char command[STRING_LENGTH];   // aktualni prikaz
-    char param1[STRING_LENGTH];   // prvni zadany adresar
-    char param2[STRING_LENGTH];   // druhy zadany adresar
+    char *input = (char*)calloc(COMMAND_LENGTH, sizeof(char));     // aktualni uzivatelsky input
+    char *command = (char*)calloc(STRING_LENGTH, sizeof(char));   // aktualni prikaz
+    char *param1 = (char*)calloc(STRING_LENGTH, sizeof(char));   // prvni zadany adresar
+    char *param2 = (char*)calloc(STRING_LENGTH, sizeof(char));   // druhy zadany adresar
 
     fs = (vfs*)malloc(sizeof(vfs));
 
@@ -47,8 +47,6 @@ int main(int argc, char *argv[]) {
     memset(&action, 0, sizeof(struct sigaction));
     action.sa_handler = term;
     sigaction(SIGTERM, &action, NULL);
-
-    reset_buffers(input, command, param1, param2);
 
     if (argc < ARG_COUNT) {
         printf("Usage: \n");

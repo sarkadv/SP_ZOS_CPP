@@ -58,3 +58,27 @@ int count_directory_contents(directory *dir) {
 
     return sum;
 }
+
+directory_item *find_diritem_in_dir_by_name(directory *dir, char *name) {
+    directory_item *subitem;
+
+    subitem = dir->subdirectories;
+
+    while (subitem != NULL) {
+        if (!strcmp(name, subitem->name)) {
+            return subitem;
+        }
+        subitem = subitem->next;
+    }
+
+    subitem = dir->files;
+
+    while (subitem != NULL) {
+        if (!strcmp(name, subitem->name)) {
+            return subitem;
+        }
+        subitem = subitem->next;
+    }
+
+    return NULL;
+}
