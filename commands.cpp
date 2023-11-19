@@ -6,8 +6,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stack>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include "commands.h"
 #include "inode.h"
 #include "data_block.h"
@@ -353,7 +351,7 @@ int read_vfs_from_file(vfs *fs) {
     sblock = (superblock*)malloc(sizeof(superblock));
     fs->superblock = sblock;
 
-    fin = fopen(fs->name, "r");
+    fin = fopen(fs->name, "rb");
     if (!fin) {
         return 0;
     }
@@ -408,7 +406,7 @@ int write_vfs_to_file(vfs *vfs) {
         return 0;
     }
 
-    fout = fopen(vfs->name, "w");
+    fout = fopen(vfs->name, "wb");
 
     if (!fout) {
         return 0;
@@ -471,7 +469,7 @@ int command_format(char *size, vfs *vfs) {
         return 0;
     }
 
-    FILE *fp = fopen(vfs->name, "w");
+    FILE *fp = fopen(vfs->name, "wb");
     fseek(fp, format_size_B - 1, SEEK_SET);
     fputc('\n', fp);
     fclose(fp);
@@ -647,6 +645,13 @@ int command_make_dir(vfs *fs, char *created_dir_path) {
         return 0;
     }
 
+    created_dir_name = get_last_part_of_path(fs, created_dir_path);
+
+    if (strchr(created_dir_name, '/') != NULL) {
+        printf("Directory name cannot contain the / character.\n");
+        return 0;
+    }
+
     free_inode = find_free_inode(fs);
 
     if (free_inode == 0) {
@@ -662,7 +667,6 @@ int command_make_dir(vfs *fs, char *created_dir_path) {
     }
 
     free_data_block = free_data_blocks[0];
-    created_dir_name = get_last_part_of_path(fs, created_dir_path);
 
     created_directory_item = create_directory_item(free_inode + 1, created_dir_name, NULL);
     created_directory = create_directory(NULL, NULL, parent_dir, created_directory_item);
@@ -813,6 +817,161 @@ int32_t *find_all_indirect2_data_blocks(vfs *fs, data_block *block, int32_t *cou
     return result;
 }
 
+char *get_all_data_as_string(vfs *fs, inode *inode) {
+    char *result;
+    int32_t *indirect1_blocks = NULL;
+    int32_t indirect1_blocks_count = 0;
+    int32_t *indirect2_blocks = NULL;
+    int32_t indirect2_blocks_count = 0;
+    int32_t i, j;
+    char *current_char;
+    int32_t char_count = 0;
+
+    if (!fs || !inode) {
+        return NULL;
+    }
+
+    result = (char*)calloc(inode->file_size, sizeof(char));
+
+    if (inode->direct1 != 0) {
+        for (i = 0; i < DATA_BLOCK_SIZE_B; i++) {
+            current_char = fs->data_blocks[inode->direct1 - 1]->data + i;
+            result[char_count] = *current_char;
+            char_count++;
+
+            if (char_count == inode->file_size) {
+                break;
+            }
+        }
+    }
+
+    if (inode->direct2 != 0) {
+        for (i = 0; i < DATA_BLOCK_SIZE_B; i++) {
+            current_char = fs->data_blocks[inode->direct2 - 1]->data + i;
+            result[char_count] = *current_char;
+            char_count++;
+
+            if (char_count == inode->file_size) {
+                break;
+            }
+        }
+    }
+
+    if (inode->direct3 != 0) {
+        for (i = 0; i < DATA_BLOCK_SIZE_B; i++) {
+            current_char = fs->data_blocks[inode->direct3 - 1]->data + i;
+            result[char_count] = *current_char;
+            char_count++;
+
+            if (char_count == inode->file_size) {
+                break;
+            }
+        }
+    }
+
+    if (inode->direct4 != 0) {
+        for (i = 0; i < DATA_BLOCK_SIZE_B; i++) {
+            current_char = fs->data_blocks[inode->direct4 - 1]->data + i;
+            result[char_count] = *current_char;
+            char_count++;
+
+            if (char_count == inode->file_size) {
+                break;
+            }
+        }
+    }
+
+    if (inode->direct5 != 0) {
+        for (i = 0; i < DATA_BLOCK_SIZE_B; i++) {
+            current_char = fs->data_blocks[inode->direct5 - 1]->data + i;
+            result[char_count] = *current_char;
+            char_count++;
+
+            if (char_count == inode->file_size) {
+                break;
+            }
+        }
+    }
+
+    if (inode->indirect1 != 0) {
+        indirect1_blocks = find_all_indirect1_data_blocks(fs->data_blocks[inode->indirect1 - 1], &indirect1_blocks_count);
+
+        for (i = 0; i < indirect1_blocks_count; i++) {
+            for (j = 0; j < DATA_BLOCK_SIZE_B; j++) {
+                current_char = fs->data_blocks[indirect1_blocks[i] - 1]->data + j;
+                result[char_count] = *current_char;
+                char_count++;
+
+                if (char_count == inode->file_size) {
+                    break;
+                }
+            }
+            if (char_count == inode->file_size) {
+                break;
+            }
+        }
+    }
+
+    if (inode->indirect2 != 0) {
+        indirect2_blocks = find_all_indirect2_data_blocks(fs, fs->data_blocks[inode->indirect2 - 1], &indirect2_blocks_count);
+
+        for (i = 0; i < indirect2_blocks_count; i++) {
+            for (j = 0; j < DATA_BLOCK_SIZE_B; j++) {
+                current_char = fs->data_blocks[indirect2_blocks[i] - 1]->data + j;
+                result[char_count] = *current_char;
+                char_count++;
+
+                if (char_count == inode->file_size) {
+                    break;
+                }
+            }
+            if (char_count == inode->file_size) {
+                break;
+            }
+        }
+    }
+
+    if (indirect1_blocks) {
+        free(indirect1_blocks);
+    }
+
+    if (indirect2_blocks) {
+        free(indirect2_blocks);
+    }
+
+    return result;
+}
+
+char **get_all_data_as_blocks(vfs *fs, inode *inode) {
+    char **blocks;
+    char *output;
+    int32_t block_count;
+    int32_t i;
+
+    if (!fs || !inode) {
+        return NULL;
+    }
+
+    output = get_all_data_as_string(fs, inode);
+
+    block_count = inode->file_size / DATA_BLOCK_SIZE_B;
+
+    if (inode->file_size % DATA_BLOCK_SIZE_B != 0) {
+        block_count++;
+    }
+
+    blocks = (char**)calloc(block_count, sizeof(char*));
+
+    for (i = 0; i < block_count; i++) {
+        blocks[i] = (char*)calloc(DATA_BLOCK_SIZE_B, sizeof(char));
+        strncpy(blocks[i], output + i*DATA_BLOCK_SIZE_B, DATA_BLOCK_SIZE_B);
+    }
+
+    free(output);
+
+    return blocks;
+}
+
 int command_info(vfs *fs, char *path) {
     directory *parent_dir;
     directory_item *item;
@@ -922,7 +1081,7 @@ int command_load(vfs *fs, char *path) {
     char *param1 = (char*)calloc(STRING_LENGTH, sizeof(char));   // prvni zadany adresar
     char *param2 = (char*)calloc(STRING_LENGTH, sizeof(char));   // druhy zadany adresar
 
-    file = fopen(path, "r");
+    file = fopen(path, "rb");
     if (!file) {
         printf("File not found.\n");
         return 0;
@@ -968,7 +1127,8 @@ int command_in_copy(vfs *fs, char *disk_file_path, char *fs_file_path) {
     directory_item *created_directory_item;
     inode *parent_dir_inode;
     data_block *parent_dir_data_block;
-    char current_char;
+    char *current_char;
+    int32_t char_count;
     char **loaded_data;
     int32_t written_blocks = 0;
     int32_t used_block_count = 0;
@@ -1000,7 +1160,7 @@ int command_in_copy(vfs *fs, char *disk_file_path, char *fs_file_path) {
         return 0;
     }
 
-    file = fopen(disk_file_path, "r");
+    file = fopen(disk_file_path, "rb");
     if (!file) {
         printf("File not found.\n");
         return 0;
@@ -1129,22 +1289,26 @@ int command_in_copy(vfs *fs, char *disk_file_path, char *fs_file_path) {
         loaded_data[i] = (char*)calloc(DATA_BLOCK_SIZE_B, sizeof(char));
     }
 
+    current_char = (char*)malloc(sizeof(char));
+    char_count = 0;
     i = 0;
     j = 0;
     do
     {
-        current_char = fgetc(file);
+        fread(current_char,sizeof(char),1,file);
 
-        if (feof(file)) {
-            break;
-        }
-
-        loaded_data[i][j] = current_char;
+        loaded_data[i][j] = *current_char;
         j++;
 
         if (j % DATA_BLOCK_SIZE_B == 0) {
             i++;
             j = 0;
+        }
+
+        char_count++;
+
+        if (char_count == fs->inodes[free_inode]->file_size) {
+            break;
         }
 
     }  while (1);
@@ -1270,10 +1434,7 @@ int command_concatenate(vfs *fs, char *filepath) {
     directory_item *file;
     char *filename;
     inode *inode;
-    int32_t *indirect1_blocks = NULL;
-    int32_t indirect1_blocks_count = 0;
-    int32_t *indirect2_blocks = NULL;
-    int32_t indirect2_blocks_count = 0;
+    char *output;
     int32_t i;
 
     if (!fs || !filepath) {
@@ -1296,53 +1457,15 @@ int command_concatenate(vfs *fs, char *filepath) {
         return 0;
     }
 
-    if (inode->direct1 != 0) {
-        printf("%s", fs->data_blocks[inode->direct1 - 1]->data);
-    }
+    output = get_all_data_as_string(fs, inode);
 
-    if (inode->direct2 != 0) {
-        printf("%s", fs->data_blocks[inode->direct2 - 1]->data);
-    }
-
-    if (inode->direct3 != 0) {
-        printf("%s", fs->data_blocks[inode->direct3 - 1]->data);
-    }
-
-    if (inode->direct4 != 0) {
-        printf("%s", fs->data_blocks[inode->direct4 - 1]->data);
-    }
-
-    if (inode->direct5 != 0) {
-        printf("%s", fs->data_blocks[inode->direct5 - 1]->data);
-    }
-
-    if (inode->indirect1 != 0) {
-        indirect1_blocks = find_all_indirect1_data_blocks(fs->data_blocks[inode->indirect1 - 1], &indirect1_blocks_count);
-
-        for (i = 0; i < indirect1_blocks_count; i++) {
-            printf("%s", fs->data_blocks[indirect1_blocks[i] - 1]->data);
-        }
-    }
-
-    if (inode->indirect2 != 0) {
-        indirect2_blocks = find_all_indirect2_data_blocks(fs, fs->data_blocks[inode->indirect2 - 1], &indirect2_blocks_count);
-
-        for (i = 0; i < indirect2_blocks_count; i++) {
-            printf("%s", fs->data_blocks[indirect2_blocks[i] - 1]->data);
-        }
+    for (i = 0; i < inode->file_size; i++) {
+        printf("%c", output[i]);
     }
 
     printf("\n");
 
-    free(filename);
-
-    if (indirect1_blocks) {
-        free(indirect1_blocks);
-    }
-
-    if (indirect2_blocks) {
-        free(indirect2_blocks);
-    }
+    free(output);
 
     return 1;
 }
@@ -1353,13 +1476,7 @@ int command_out_copy(vfs *fs, char *fs_file_path, char *disk_file_path) {
     directory_item *fs_file;
     inode *inode;
     FILE *fout;
-    int32_t *indirect1_blocks = NULL;
-    int32_t indirect1_blocks_count = 0;
-    int32_t *indirect2_blocks = NULL;
-    int32_t indirect2_blocks_count = 0;
-    int32_t i, j;
-    char *current_char;
-    int32_t char_count = 0;
+    char *output;
 
     if (!fs || !disk_file_path || !fs_file_path) {
         return 0;
@@ -1387,122 +1504,18 @@ int command_out_copy(vfs *fs, char *fs_file_path, char *disk_file_path) {
         return 0;
     }
 
-    fout = fopen(disk_file_path, "w");
+    fout = fopen(disk_file_path, "wb");
 
     if (!fout) {
         printf("Path not found.\n");
         return 0;
     }
 
-    if (inode->direct1 != 0) {
-        for (i = 0; i < DATA_BLOCK_SIZE_B; i++) {
-            current_char = fs->data_blocks[inode->direct1 - 1]->data + i;
-            fwrite(current_char, sizeof(char), 1, fout);
-            char_count++;
-
-            if (char_count == inode->file_size) {
-                break;
-            }
-        }
-    }
-
-    if (inode->direct2 != 0) {
-        for (i = 0; i < DATA_BLOCK_SIZE_B; i++) {
-            current_char = fs->data_blocks[inode->direct2 - 1]->data + i;
-            fwrite(current_char, sizeof(char), 1, fout);
-            char_count++;
-
-            if (char_count == inode->file_size) {
-                break;
-            }
-        }
-    }
-
-    if (inode->direct3 != 0) {
-        for (i = 0; i < DATA_BLOCK_SIZE_B; i++) {
-            current_char = fs->data_blocks[inode->direct3 - 1]->data + i;
-            fwrite(current_char, sizeof(char), 1, fout);
-            char_count++;
-
-            if (char_count == inode->file_size) {
-                break;
-            }
-        }
-    }
-
-    if (inode->direct4 != 0) {
-        for (i = 0; i < DATA_BLOCK_SIZE_B; i++) {
-            current_char = fs->data_blocks[inode->direct4 - 1]->data + i;
-            fwrite(current_char, sizeof(char), 1, fout);
-            char_count++;
-
-            if (char_count == inode->file_size) {
-                break;
-            }
-        }
-    }
-
-    if (inode->direct5 != 0) {
-        for (i = 0; i < DATA_BLOCK_SIZE_B; i++) {
-            current_char = fs->data_blocks[inode->direct5 - 1]->data + i;
-            fwrite(current_char, sizeof(char), 1, fout);
-            char_count++;
-
-            if (char_count == inode->file_size) {
-                break;
-            }
-        }
-    }
-
-    if (inode->indirect1 != 0) {
-        indirect1_blocks = find_all_indirect1_data_blocks(fs->data_blocks[inode->indirect1 - 1], &indirect1_blocks_count);
-
-        for (i = 0; i < indirect1_blocks_count; i++) {
-            for (j = 0; j < DATA_BLOCK_SIZE_B; j++) {
-                current_char = fs->data_blocks[indirect1_blocks[i] - 1]->data + j;
-                fwrite(current_char, sizeof(char), 1, fout);
-                char_count++;
-
-                if (char_count == inode->file_size) {
-                    break;
-                }
-            }
-            if (char_count == inode->file_size) {
-                break;
-            }
-        }
-    }
-
-    if (inode->indirect2 != 0) {
-        indirect2_blocks = find_all_indirect2_data_blocks(fs, fs->data_blocks[inode->indirect2 - 1], &indirect2_blocks_count);
-
-        for (i = 0; i < indirect2_blocks_count; i++) {
-            for (j = 0; j < DATA_BLOCK_SIZE_B; j++) {
-                current_char = fs->data_blocks[indirect2_blocks[i] - 1]->data + j;
-                fwrite(current_char, sizeof(char), 1, fout);
-                char_count++;
-
-                if (char_count == inode->file_size) {
-                    break;
-                }
-            }
-            if (char_count == inode->file_size) {
-                break;
-            }
-        }
-    }
-
+    output = get_all_data_as_string(fs, inode);
+    fwrite(output, sizeof(char), inode->file_size, fout);
     fclose(fout);
 
     free(filename);
-
-    if (indirect1_blocks) {
-        free(indirect1_blocks);
-    }
-
-    if (indirect2_blocks) {
-        free(indirect2_blocks);
-    }
 
     printf("OK\n");
     return 1;
@@ -1736,6 +1749,295 @@ int command_move(vfs *fs, char *file, char *path) {
     return 1;
 }
 
+int command_copy(vfs *fs, char *file_path, char *copy_path) {
+    directory_item *file_to_copy;
+    char *filename;
+    directory *parent_dir;
+    directory *dir_for_copying;
+    inode *copying_dir_inode;
+    data_block *copying_dir_data_block;
+    int32_t file_size;
+    int32_t remaining_bytes;
+    int32_t needed_direct_blocks = 0;
+    int32_t needed_indirect1_blocks = 0;
+    int32_t needed_indirect2_blocks = 0;
+    int32_t total_needed_blocks = 0;
+    int32_t total_needed_blocks_for_data = 0;
+    int32_t free_inode;
+    int32_t *free_data_blocks;
+    directory_item *created_directory_item;
+    char current_char;
+    char **loaded_data;
+    int32_t written_blocks = 0;
+    int32_t used_block_count = 0;
+    int32_t *indirect1_references_to_write = NULL;
+    int32_t *indirect2_references_to_write = NULL;
+    int32_t indirect1_references_counter = 0;
+    int32_t indirect2_references_counter = 0;
+    int i, j;
+
+    if (!fs || !file_path || !copy_path) {
+        return 0;
+    }
+
+    parent_dir = parse_path(fs, file_path, true);
+
+    if (!parent_dir) {
+        printf("File not found.\n");
+        return 0;
+    }
+
+    filename = get_last_part_of_path(fs, file_path);
+    file_to_copy = find_diritem_in_dir_by_name(parent_dir, filename);
+
+    if (!file_to_copy) {
+        printf("File not found.\n");
+        return 0;
+    }
+
+    dir_for_copying = parse_path(fs, copy_path, false);
+
+    if (!dir_for_copying) {
+        printf("Path not found.\n");
+        return 0;
+    }
+
+    if (find_diritem_in_dir_by_name(dir_for_copying, filename) != NULL) {
+        printf("Directory already contains a file with this name.\n");
+        return 0;
+    }
+
+    file_size = fs->inodes[file_to_copy->inode - 1]->file_size;
+
+    // vypocet kolik budeme potrebovat primych bloku
+    remaining_bytes = file_size;
+    for (i = DIRECT_REFERENCES_COUNT; i > 0; i--) {
+        remaining_bytes -= DATA_BLOCK_SIZE_B;
+        needed_direct_blocks++;
+
+        if (remaining_bytes <= 0) {
+            break;
+        }
+    }
+
+    // vypocet kolik budeme potrebovat 1. neprimych bloku
+    if (remaining_bytes > 0) {
+        needed_indirect1_blocks++;
+
+        for (i = MAX_DIRECTORY_REFERENCES; i > 0; i--) {
+            remaining_bytes -= DATA_BLOCK_SIZE_B;
+            needed_indirect1_blocks++;
+
+            if (remaining_bytes <= 0) {
+                break;
+            }
+        }
+    }
+
+    // vypocet kolik budeme potrebovat 2. neprimych bloku
+    if (remaining_bytes > 0) {
+        needed_indirect2_blocks += 2;
+
+        for (i = MAX_DIRECTORY_REFERENCES; i > 0; i--) {
+            if (remaining_bytes <= 0) {
+                break;
+            }
+            for (j = MAX_DIRECTORY_REFERENCES; j > 0; j--) {
+                remaining_bytes -= DATA_BLOCK_SIZE_B;
+                needed_indirect2_blocks++;
+
+                if (remaining_bytes <= 0) {
+                    break;
+                }
+            }
+            needed_indirect2_blocks++;
+        }
+    }
+
+    free_inode = find_free_inode(fs);
+
+    if (free_inode == 0) {
+        printf("No free i-nodes have been found.\n");
+        return 0;
+    }
+
+    // bloky celkem
+    total_needed_blocks = needed_direct_blocks + needed_indirect1_blocks + needed_indirect2_blocks;
+    total_needed_blocks_for_data = file_size / DATA_BLOCK_SIZE_B;
+
+    if (file_size % DATA_BLOCK_SIZE_B != 0) {
+        total_needed_blocks_for_data++;
+    }
+
+    free_data_blocks = find_free_data_blocks(fs, total_needed_blocks);
+
+    if (!free_data_blocks) {
+        printf("Not enough free data blocks have been found.\n");
+        return 0;
+    }
+
+    fs->inodes[free_inode]->nodeid = free_inode + 1;
+    fs->inodes[free_inode]->isDirectory = false;
+    fs->inodes[free_inode]->file_size = file_size;
+    fs->inodes[free_inode]->references = 1;
+
+    // zabrani primych odkazu
+    if (needed_direct_blocks > 0) {
+        fs->inodes[free_inode]->direct1 = free_data_blocks[0] + 1;
+        used_block_count++;
+    }
+
+    if (needed_direct_blocks > 1) {
+        fs->inodes[free_inode]->direct2 = free_data_blocks[1] + 1;
+        used_block_count++;
+    }
+
+    if (needed_direct_blocks > 2) {
+        fs->inodes[free_inode]->direct3 = free_data_blocks[2] + 1;
+        used_block_count++;
+    }
+
+    if (needed_direct_blocks > 3) {
+        fs->inodes[free_inode]->direct4 = free_data_blocks[3] + 1;
+        used_block_count++;
+    }
+
+    if (needed_direct_blocks > 4) {
+        fs->inodes[free_inode]->direct5 = free_data_blocks[4] + 1;
+        used_block_count++;
+    }
+
+    set_bit(fs->bitmapi, free_inode);
+
+    for (i = 0; i < total_needed_blocks; i++) {
+        set_bit(fs->bitmapd, free_data_blocks[i]);
+    }
+
+    created_directory_item = create_directory_item(free_inode + 1, filename, NULL);
+    add_file_to_directory(fs, dir_for_copying, created_directory_item);
+
+    copying_dir_inode = fs->inodes[dir_for_copying->this_item->inode - 1];
+    copying_dir_data_block = fs->data_blocks[copying_dir_inode->direct1 - 1];
+
+    // zapis rodicovskeho adresare do fs->data_blocks
+    write_dir_items_to_data_block(copying_dir_data_block, dir_for_copying->subdirectories, dir_for_copying->files);
+
+    // nacteni dat do poli velikosti datovych bloku
+    loaded_data = get_all_data_as_blocks(fs, fs->inodes[file_to_copy->inode - 1]);
+
+    // zapis souboru do fs->data_blocks
+    // zapis primych odkazu
+    if (written_blocks < total_needed_blocks_for_data) {
+        write_data_to_data_block(fs->data_blocks[fs->inodes[free_inode]->direct1 - 1], fs->data_blocks[fs->inodes[file_to_copy->inode - 1]->direct1 - 1]->data);
+        written_blocks++;
+    }
+
+    if (written_blocks < total_needed_blocks_for_data) {
+        write_data_to_data_block(fs->data_blocks[fs->inodes[free_inode]->direct2 - 1], fs->data_blocks[fs->inodes[file_to_copy->inode - 1]->direct2 - 1]->data);
+        written_blocks++;
+    }
+
+    if (written_blocks < total_needed_blocks_for_data) {
+        write_data_to_data_block(fs->data_blocks[fs->inodes[free_inode]->direct3 - 1], fs->data_blocks[fs->inodes[file_to_copy->inode - 1]->direct3 - 1]->data);
+        written_blocks++;
+    }
+
+    if (written_blocks < total_needed_blocks_for_data) {
+        write_data_to_data_block(fs->data_blocks[fs->inodes[free_inode]->direct4 - 1], fs->data_blocks[fs->inodes[file_to_copy->inode - 1]->direct4 - 1]->data);
+        written_blocks++;
+    }
+
+    if (written_blocks < total_needed_blocks_for_data) {
+        write_data_to_data_block(fs->data_blocks[fs->inodes[free_inode]->direct5 - 1], fs->data_blocks[fs->inodes[file_to_copy->inode - 1]->direct5 - 1]->data);
+        written_blocks++;
+    }
+
+    // zapis 1. neprimeho odkazu
+    if (written_blocks < total_needed_blocks) {
+        fs->inodes[free_inode]->indirect1 = free_data_blocks[used_block_count] + 1;
+        used_block_count++;
+        indirect1_references_to_write = (int32_t*)calloc(MAX_DIRECTORY_REFERENCES, sizeof(int32_t));
+
+        for (i = MAX_DIRECTORY_REFERENCES; i > 0; i--) {
+            indirect1_references_to_write[indirect1_references_counter] = free_data_blocks[used_block_count] + 1;
+
+            write_data_to_data_block(fs->data_blocks[free_data_blocks[used_block_count]], loaded_data[written_blocks]);
+            written_blocks++;
+            indirect1_references_counter++;
+            used_block_count++;
+
+            if (written_blocks >= total_needed_blocks_for_data) {
+                break;
+            }
+        }
+
+        write_references_to_data_block(fs->data_blocks[fs->inodes[free_inode]->indirect1 - 1], indirect1_references_to_write, indirect1_references_counter);
+
+    }
+
+    // zapis 2. neprimeho odkazu
+    if (written_blocks < total_needed_blocks_for_data) {
+        fs->inodes[free_inode]->indirect2 = free_data_blocks[used_block_count] + 1;
+        used_block_count++;
+
+        memset(indirect1_references_to_write, 0, MAX_DIRECTORY_REFERENCES);
+        indirect1_references_counter = 0;
+
+        indirect2_references_to_write = (int32_t*)calloc(MAX_DIRECTORY_REFERENCES, sizeof(int32_t));
+
+        for (i = MAX_DIRECTORY_REFERENCES; i > 0; i--) {
+            if (written_blocks >= total_needed_blocks_for_data) {
+                break;
+            }
+
+            indirect2_references_to_write[indirect2_references_counter] = free_data_blocks[used_block_count] + 1;
+            used_block_count++;
+            indirect2_references_counter++;
+
+            for (j = 0; j < MAX_DIRECTORY_REFERENCES; j++) {
+                indirect1_references_to_write[indirect1_references_counter] = free_data_blocks[used_block_count] + 1;
+
+                write_data_to_data_block(fs->data_blocks[free_data_blocks[used_block_count]], loaded_data[written_blocks]);
+                written_blocks++;
+                indirect1_references_counter++;
+                used_block_count++;
+
+                if (written_blocks >= total_needed_blocks_for_data) {
+                    break;
+                }
+            }
+            write_references_to_data_block(fs->data_blocks[indirect2_references_to_write[indirect2_references_counter - 1] - 1], indirect1_references_to_write, indirect1_references_counter);
+            memset(indirect1_references_to_write, 0, MAX_DIRECTORY_REFERENCES);
+            indirect1_references_counter = 0;
+        }
+
+        write_references_to_data_block(fs->data_blocks[fs->inodes[free_inode]->indirect2 - 1], indirect2_references_to_write, indirect2_references_counter);
+    }
+
+    // uvolneni pameti
+    for (i = 0; i < total_needed_blocks_for_data; i++) {
+        free(loaded_data[i]);
+    }
+    free(loaded_data);
+
+    if (indirect1_references_to_write != NULL) {
+        free(indirect1_references_to_write);
+    }
+
+    if (indirect2_references_to_write != NULL) {
+        free(indirect2_references_to_write);
+    }
+
+    // zapis vfs do souboru
+    if (!write_vfs_to_file(fs)) {
+        printf("There was an error writing to the VFS file.\n");
+        return 0;
+    }
+
+    printf("OK\n");
+    return 1;
+}
+
 int command_end(vfs *fs) {
     printf("Ending program.\n");
     free(fs);
@@ -1756,7 +2058,7 @@ int execute_command(char *command, char *param1, char *param2, vfs *fs) {
     }
     else if (strcmp(COMMAND_COPY, command) == 0) {
         if (fs->loaded) {
-            printf("copy\n");
+            return command_copy(fs, param1, param2);
         }
         else {
             return 0;

@@ -20,6 +20,4 @@ add_executable(SP_ZOS_CPP vfs.cpp
         inode.h
         directory.cpp
         directory.h
-        file_handler.cpp
-        file_handler.h
 )
