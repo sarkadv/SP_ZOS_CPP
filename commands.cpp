@@ -1634,6 +1634,108 @@ int command_remove_file(vfs *fs, char *path) {
     return 1;
 }
 
+int command_move(vfs *fs, char *file, char *path) {
+    directory_item *file_to_alter;
+    char *filename;
+    directory *parent_dir;
+    directory *dir_for_moving;
+    bool move = false;  // pokud move true -> presunuti, pokud move false -> prejmenovani
+    inode *parent_dir_inode;
+    data_block *parent_dir_data_block;
+    inode *moving_dir_inode;
+    data_block *moving_dir_data_block;
+    directory_item *moved_directory_item;
+
+    if (!fs || !file || !path) {
+        return 0;
+    }
+
+    parent_dir = parse_path(fs, file, true);
+
+    if (!parent_dir) {
+        printf("File not found.\n");
+        return 0;
+    }
+
+    filename = get_last_part_of_path(fs, file);
+    file_to_alter = find_diritem_in_dir_by_name(parent_dir, filename);
+
+    if (!file_to_alter) {
+        printf("File not found.\n");
+        return 0;
+    }
+
+    // nejdrive zkusime, jestli je parametr path cesta
+    dir_for_moving = parse_path(fs, path, false);
+
+    if (dir_for_moving != NULL) {
+        move = true;
+    }
+    else {  // parametr path neni cesta, prejmenovani
+        if (strchr(path, '/') != NULL) {    // adresare nemohou obsahovat /
+            printf("Path not found.\n");
+            return 0;
+        }
+        else {
+            move = false;
+        }
+
+    }
+
+    parent_dir_inode = fs->inodes[parent_dir->this_item->inode - 1];
+    parent_dir_data_block = fs->data_blocks[parent_dir_inode->direct1 - 1];
+
+    if (!move) {    // prejmenovani
+        if (find_diritem_in_dir_by_name(parent_dir, path) != NULL) {
+            printf("Directory already contains a file with this name.\n");
+            return 0;
+        }
+
+        // path je nove jmeno souboru
+        strncpy(file_to_alter->name, path, FILENAME_LENGTH);
+
+        // zapis do fs->data_blocks
+        write_dir_items_to_data_block(parent_dir_data_block, parent_dir->subdirectories, parent_dir->files);
+    }
+    else {  // presunuti
+        if (find_diritem_in_dir_by_name(dir_for_moving, file_to_alter->name) != NULL) {
+            printf("Directory already contains a file with this name.\n");
+            return 0;
+        }
+
+        moving_dir_inode = fs->inodes[dir_for_moving->this_item->inode - 1];
+        moving_dir_data_block = fs->data_blocks[moving_dir_inode->direct1 - 1];
+
+        moved_directory_item = (directory_item*)malloc(sizeof(directory_item));
+        moved_directory_item->inode = file_to_alter->inode;
+        strncpy(moved_directory_item->name, file_to_alter->name, FILENAME_LENGTH);
+        moved_directory_item->next = NULL;
+
+        if (fs->inodes[file_to_alter->inode - 1]->isDirectory) {
+            remove_subdirectory_from_directory(fs, parent_dir, file_to_alter);
+            add_subdirectory_to_directory(fs, dir_for_moving, moved_directory_item);
+        }
+        else {
+            remove_file_from_directory(fs, parent_dir, file_to_alter);
+            add_file_to_directory(fs, dir_for_moving, moved_directory_item);
+        }
+
+        // zapis do fs->data_blocks
+        write_dir_items_to_data_block(parent_dir_data_block, parent_dir->subdirectories, parent_dir->files);
+        write_dir_items_to_data_block(moving_dir_data_block, dir_for_moving->subdirectories, dir_for_moving->files);
+    }
+
+    free(filename);
+
+    if (!write_vfs_to_file(fs)) {
+        printf("There was an error writing to the VFS file.\n");
+        return 0;
+    }
+
+    printf("OK\n");
+    return 1;
+}
+
 int command_end(vfs *fs) {
     printf("Ending program.\n");
     free(fs);
@@ -1662,7 +1764,7 @@ int execute_command(char *command, char *param1, char *param2, vfs *fs) {
     }
     else if (strcmp(COMMAND_MOVE, command) == 0) {
         if (fs->loaded) {
-            printf("move\n");
+            return command_move(fs, param1, param2);
         }
         else {
             return 0;

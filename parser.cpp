@@ -50,6 +50,7 @@ directory *parse_path(vfs *fs, char *input, bool without_last_part) {
     char *token;
     bool found;
     char *input_copy;
+    int32_t offset = 0;
 
     if (!fs) {
         return NULL;
@@ -69,13 +70,19 @@ directory *parse_path(vfs *fs, char *input, bool without_last_part) {
         current_directory = fs->current_directory;
     }
 
+    input_copy[strlen(input_copy)] = '/';
+
     delimiter = (char*)PATH_DELIMITER;
 
     token = strtok(input_copy, delimiter);
 
+    if (token != NULL) {
+        offset += strlen(token);
+    }
+
     // pokud chceme parsovat i posledni cast cesty, staci ze token neni NULL
     // pokud nechceme parsovat posledni cast cesty, cyklus se zastavi kdyz cesta uz nebude obsahovat /
-    while ((!without_last_part && token != NULL) || (without_last_part && strstr(token, delimiter))) {
+    while ((!without_last_part && token != NULL) || (without_last_part && input[offset] == '/')) {
         found = false;
 
         if (!strcmp(token, ".")) {  // aktualni adresar
@@ -106,6 +113,9 @@ directory *parse_path(vfs *fs, char *input, bool without_last_part) {
         }
 
         token = strtok(NULL, delimiter);
+        if (token != NULL) {
+            offset += strlen(token) + 1;
+        }
     }
 
     free(input_copy);
