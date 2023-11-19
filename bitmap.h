@@ -5,6 +5,7 @@
 #ifndef SP_ZOS_CPP_BITMAP_H
 #define SP_ZOS_CPP_BITMAP_H
 
+
 typedef struct {
     char *array;
     int32_t array_size_B;

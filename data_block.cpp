@@ -39,12 +39,12 @@ int write_dir_items_to_data_block(data_block *block, directory_item *subdirector
     return 1;
 }
 
-int write_data_to_data_block(data_block *block, char *data) {
+int write_data_to_data_block(data_block *block, unsigned char *data) {
     if (!block || !data) {
         return 0;
     }
 
-    strncpy(block->data, data, DATA_BLOCK_SIZE_B);
+    memcpy(block->data, data, DATA_BLOCK_SIZE_B);
 
     return 1;
 }

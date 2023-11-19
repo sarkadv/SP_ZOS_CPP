@@ -317,7 +317,7 @@ void load_items_from_data_block(vfs *fs, directory *dir, data_block *block) {
  * @param dir       adresar
  */
 void read_directory(vfs *fs, inode *inode, directory *dir) {
-     if (!fs || !inode || !dir) {
+    if (!fs || !inode || !dir) {
         return;
     }
 
@@ -817,21 +817,21 @@ int32_t *find_all_indirect2_data_blocks(vfs *fs, data_block *block, int32_t *cou
     return result;
 }
 
-char *get_all_data_as_string(vfs *fs, inode *inode) {
-    char *result;
+unsigned char *get_all_data_as_string(vfs *fs, inode *inode) {
+    unsigned char *result;
     int32_t *indirect1_blocks = NULL;
     int32_t indirect1_blocks_count = 0;
     int32_t *indirect2_blocks = NULL;
     int32_t indirect2_blocks_count = 0;
     int32_t i, j;
-    char *current_char;
+    unsigned char *current_char;
     int32_t char_count = 0;
 
     if (!fs || !inode) {
         return NULL;
     }
 
-    result = (char*)calloc(inode->file_size, sizeof(char));
+    result = (unsigned char*)calloc(inode->file_size, sizeof(unsigned char));
 
     if (inode->direct1 != 0) {
         for (i = 0; i < DATA_BLOCK_SIZE_B; i++) {
@@ -942,9 +942,9 @@ char *get_all_data_as_string(vfs *fs, inode *inode) {
     return result;
 }
 
-char **get_all_data_as_blocks(vfs *fs, inode *inode) {
-    char **blocks;
-    char *output;
+unsigned char **get_all_data_as_blocks(vfs *fs, inode *inode) {
+    unsigned char **blocks;
+    unsigned char *output;
     int32_t block_count;
     int32_t i;
 
@@ -960,11 +960,11 @@ char **get_all_data_as_blocks(vfs *fs, inode *inode) {
         block_count++;
     }
 
-    blocks = (char**)calloc(block_count, sizeof(char*));
+    blocks = (unsigned char**)calloc(block_count, sizeof(unsigned char*));
 
     for (i = 0; i < block_count; i++) {
-        blocks[i] = (char*)calloc(DATA_BLOCK_SIZE_B, sizeof(char));
-        strncpy(blocks[i], output + i*DATA_BLOCK_SIZE_B, DATA_BLOCK_SIZE_B);
+        blocks[i] = (unsigned char*)calloc(DATA_BLOCK_SIZE_B, sizeof(unsigned char));
+        memcpy(blocks[i], output + i*DATA_BLOCK_SIZE_B, DATA_BLOCK_SIZE_B);
     }
 
     free(output);
@@ -1127,9 +1127,9 @@ int command_in_copy(vfs *fs, char *disk_file_path, char *fs_file_path) {
     directory_item *created_directory_item;
     inode *parent_dir_inode;
     data_block *parent_dir_data_block;
-    char *current_char;
+    unsigned char *current_char;
     int32_t char_count;
-    char **loaded_data;
+    unsigned char **loaded_data;
     int32_t written_blocks = 0;
     int32_t used_block_count = 0;
     int32_t *indirect1_references_to_write = NULL;
@@ -1284,18 +1284,18 @@ int command_in_copy(vfs *fs, char *disk_file_path, char *fs_file_path) {
     write_dir_items_to_data_block(parent_dir_data_block, parent_dir->subdirectories, parent_dir->files);
 
     // nacteni dat ze souboru do poli velikosti datovych bloku
-    loaded_data = (char**)calloc(total_needed_blocks_for_data, sizeof(char*));
+    loaded_data = (unsigned char**)calloc(total_needed_blocks_for_data, sizeof(unsigned char*));
     for (i = 0; i < total_needed_blocks_for_data; i++) {
-        loaded_data[i] = (char*)calloc(DATA_BLOCK_SIZE_B, sizeof(char));
+        loaded_data[i] = (unsigned char*)calloc(DATA_BLOCK_SIZE_B, sizeof(unsigned char));
     }
 
-    current_char = (char*)malloc(sizeof(char));
+    current_char = (unsigned char*)malloc(sizeof(unsigned char));
     char_count = 0;
     i = 0;
     j = 0;
     do
     {
-        fread(current_char,sizeof(char),1,file);
+        fread(current_char,sizeof(unsigned char),1,file);
 
         loaded_data[i][j] = *current_char;
         j++;
@@ -1434,7 +1434,7 @@ int command_concatenate(vfs *fs, char *filepath) {
     directory_item *file;
     char *filename;
     inode *inode;
-    char *output;
+    unsigned char *output;
     int32_t i;
 
     if (!fs || !filepath) {
@@ -1476,7 +1476,7 @@ int command_out_copy(vfs *fs, char *fs_file_path, char *disk_file_path) {
     directory_item *fs_file;
     inode *inode;
     FILE *fout;
-    char *output;
+    unsigned char *output;
 
     if (!fs || !disk_file_path || !fs_file_path) {
         return 0;
@@ -1512,7 +1512,7 @@ int command_out_copy(vfs *fs, char *fs_file_path, char *disk_file_path) {
     }
 
     output = get_all_data_as_string(fs, inode);
-    fwrite(output, sizeof(char), inode->file_size, fout);
+    fwrite(output, sizeof(unsigned char), inode->file_size, fout);
     fclose(fout);
 
     free(filename);
@@ -1766,8 +1766,8 @@ int command_copy(vfs *fs, char *file_path, char *copy_path) {
     int32_t free_inode;
     int32_t *free_data_blocks;
     directory_item *created_directory_item;
-    char current_char;
-    char **loaded_data;
+    unsigned char current_char;
+    unsigned char **loaded_data;
     int32_t written_blocks = 0;
     int32_t used_block_count = 0;
     int32_t *indirect1_references_to_write = NULL;
