@@ -21,7 +21,7 @@ bitmap *create_bitmap(int32_t size_b) {
     }
 
     new_bitmap = (bitmap*)malloc(sizeof(bitmap));
-    new_bitmap->array = (char*)calloc(size_B, 1);
+    new_bitmap->array = (unsigned char*)calloc(size_B, 1);
     memset(new_bitmap->array, 0, sizeof(size_B));
     new_bitmap->array_size_B = size_B;
     new_bitmap->array_size_b = size_b;
@@ -68,6 +68,8 @@ int clear_bit(bitmap *bitmap, int32_t bit_index) {
 }
 
 bool get_bit(bitmap *bitmap, int32_t bit_index) {
+    bool result;
+
     if (!bitmap) {
         return 0;
     }
@@ -81,7 +83,8 @@ bool get_bit(bitmap *bitmap, int32_t bit_index) {
     int8_t index_position = bit_index % 8;
 
     flag = flag << index_position;
-    return (bitmap->array[index] & flag) != 0;     // logicky soucin
+    result = (bitmap->array[index] & flag) != 0;    // logicky soucin
+    return result;
 }
 
 void free_bitmap(bitmap *bitmap) {
@@ -91,4 +94,16 @@ void free_bitmap(bitmap *bitmap) {
 
     free(bitmap->array);
     free(bitmap);
+}
+
+void print_bitmap(bitmap *bitmap) {
+    int32_t i;
+
+    if (!bitmap) {
+        return;
+    }
+
+    for (i = 0; i < bitmap->array_size_b; i++) {
+        printf("%d ", get_bit(bitmap, i));
+    }
 }

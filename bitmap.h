@@ -7,7 +7,7 @@
 
 
 typedef struct {
-    char *array;
+    unsigned char *array;
     int32_t array_size_B;
     int32_t array_size_b;
 } bitmap;
@@ -17,5 +17,6 @@ void free_bitmap(bitmap *bitmap);
 int set_bit(bitmap *bitmap, int32_t bit_index);
 int clear_bit(bitmap *bitmap, int32_t bit_index);
 bool get_bit(bitmap *bitmap, int32_t bit_index);
+void print_bitmap(bitmap *bitmap);
 
 #endif //SP_ZOS_CPP_BITMAP_H

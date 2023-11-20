@@ -79,7 +79,7 @@ directory *parse_path(vfs *fs, char *input, bool without_last_part) {
     token = strtok_r(input_copy, delimiter, &saveptr);
 
     if (token != NULL) {
-        offset += strlen(token);
+        offset += strlen(token) + 1;
     }
 
     // pokud chceme parsovat i posledni cast cesty, staci ze token neni NULL
