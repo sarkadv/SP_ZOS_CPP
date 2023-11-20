@@ -14,7 +14,8 @@ const int32_t ID_ITEM_FREE = 0;
 
 typedef struct {
     int32_t nodeid;               //ID i-uzlu, pokud ID = ID_ITEM_FREE, je polozka volna
-    bool isDirectory;               //soubor, nebo adresar
+    bool is_directory;               //soubor, nebo adresar
+    bool is_symlink;                // je symbolicky odkaz
     int8_t references;              //počet odkazů na i-uzel, používá se pro hardlinky
     int32_t file_size;              //velikost souboru v bytech
     int32_t direct1;                // 1. přímý odkaz na datové bloky

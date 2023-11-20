@@ -44,6 +44,7 @@ int write_data_to_data_block(data_block *block, unsigned char *data) {
         return 0;
     }
 
+    memset(block->data, 0, DATA_BLOCK_SIZE_B);
     memcpy(block->data, data, DATA_BLOCK_SIZE_B);
 
     return 1;
@@ -79,4 +80,17 @@ int data_block_empty(data_block *block) {
     }
 
     return 1;
+}
+
+char *get_symlink_reference(data_block *block) {
+    char *result;
+
+    if (!block) {
+        return NULL;
+    }
+
+    result = (char*)calloc(STRING_LENGTH, sizeof(char));
+    memcpy(result, block->data, STRING_LENGTH);
+
+    return result;
 }

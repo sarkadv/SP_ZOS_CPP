@@ -51,6 +51,7 @@ directory *parse_path(vfs *fs, char *input, bool without_last_part) {
     bool found;
     char *input_copy;
     int32_t offset = 0;
+    char* saveptr = NULL;
 
     if (!fs) {
         return NULL;
@@ -60,8 +61,8 @@ directory *parse_path(vfs *fs, char *input, bool without_last_part) {
         return fs->current_directory;
     }
 
-    input_copy = (char*)malloc(strlen(input)*sizeof(char));
-    strcpy(input_copy, input);
+    input_copy = (char*)calloc((strlen(input) + 2), sizeof(char));
+    strncpy(input_copy, input, strlen(input));
 
     if (input_copy[0] == '/') {  // absolutni cesta
         current_directory = fs->root_directory;
@@ -70,11 +71,12 @@ directory *parse_path(vfs *fs, char *input, bool without_last_part) {
         current_directory = fs->current_directory;
     }
 
-    input_copy[strlen(input_copy)] = '/';
+    input_copy[strlen(input)] = '/';
+    input_copy[strlen(input) + 1] = '\0';
 
     delimiter = (char*)PATH_DELIMITER;
 
-    token = strtok(input_copy, delimiter);
+    token = strtok_r(input_copy, delimiter, &saveptr);
 
     if (token != NULL) {
         offset += strlen(token);
@@ -82,7 +84,7 @@ directory *parse_path(vfs *fs, char *input, bool without_last_part) {
 
     // pokud chceme parsovat i posledni cast cesty, staci ze token neni NULL
     // pokud nechceme parsovat posledni cast cesty, cyklus se zastavi kdyz cesta uz nebude obsahovat /
-    while ((!without_last_part && token != NULL) || (without_last_part && input[offset] == '/')) {
+    while ((!without_last_part && token != NULL) || (without_last_part && token != NULL && input[offset] == '/')) {
         found = false;
 
         if (!strcmp(token, ".")) {  // aktualni adresar
@@ -101,6 +103,7 @@ directory *parse_path(vfs *fs, char *input, bool without_last_part) {
 
             while (subdirectory != NULL) {
                 if (!strcmp(token, subdirectory->name)) {
+                    subdirectory = find_symlink_target_file(fs, subdirectory);
                     found = true;
                     current_directory = fs->all_directories[subdirectory->inode];
                     break;
@@ -112,7 +115,7 @@ directory *parse_path(vfs *fs, char *input, bool without_last_part) {
             }
         }
 
-        token = strtok(NULL, delimiter);
+        token = strtok_r(NULL, delimiter, &saveptr);
         if (token != NULL) {
             offset += strlen(token) + 1;
         }
@@ -145,3 +148,78 @@ char *get_last_part_of_path(vfs *fs, char *input) {
 
     return result;
 }
+
+directory_item *find_diritem_in_dir_by_name(directory *dir, char *name) {
+    directory_item *subitem;
+
+    subitem = dir->subdirectories;
+
+    while (subitem != NULL) {
+        if (!strcmp(name, subitem->name)) {
+            return subitem;
+        }
+        subitem = subitem->next;
+    }
+
+    subitem = dir->files;
+
+    while (subitem != NULL) {
+        if (!strcmp(name, subitem->name)) {
+            return subitem;
+        }
+        subitem = subitem->next;
+    }
+
+    return NULL;
+}
+
+directory_item *find_symlink_target_file(vfs *fs, directory_item *symlink_file) {
+    directory_item *current_file;
+    char *current_file_target;
+    directory *target_file_parent_dir;
+    char *target_file_name;
+
+    if (!symlink_file) {
+        return NULL;
+    }
+
+    if (!fs->inodes[symlink_file->inode - 1]->is_symlink) {
+        return symlink_file;
+    }
+
+    current_file = symlink_file;
+
+    while (1) {
+        current_file_target = get_symlink_reference(fs->data_blocks[fs->inodes[current_file->inode - 1]->direct1 - 1]);
+        target_file_parent_dir = parse_path(fs, current_file_target, true);
+
+        if (!target_file_parent_dir) {
+            free(current_file_target);
+
+            if (target_file_name) {
+                free(target_file_name);
+            }
+            return NULL;
+        }
+
+        target_file_name = get_last_part_of_path(fs, current_file_target);
+        current_file = find_diritem_in_dir_by_name(target_file_parent_dir, target_file_name);
+
+        if (!current_file) {
+            free(current_file_target);
+
+            if (target_file_name) {
+                free(target_file_name);
+            }
+            return NULL;
+        }
+
+        if (!fs->inodes[current_file->inode - 1]->is_symlink) {
+            free(current_file_target);
+            free(target_file_name);
+            return current_file;
+        }
+    }
+
+}
+

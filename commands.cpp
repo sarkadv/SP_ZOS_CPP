@@ -83,39 +83,13 @@ void create_root_directory(vfs *vfs) {
     vfs->all_directories[1] = vfs->root_directory;
 
     vfs->inodes[0]->nodeid = 1;
-    vfs->inodes[0]->isDirectory = true;
+    vfs->inodes[0]->is_directory = true;
     vfs->inodes[0]->direct1 = 1;    // zabrany 1. datovy blok
 
     set_bit(vfs->bitmapi, 0);
     set_bit(vfs->bitmapd, 0);
 
     vfs->current_directory = vfs->root_directory;
-}
-
-directory_item *find_item_in_directory(vfs *fs, directory *parent_dir, char *item_name) {
-    directory_item *subitem;
-
-    if (!fs || !parent_dir || !item_name) {
-        return NULL;
-    }
-
-    subitem = parent_dir->subdirectories;
-    while (subitem != NULL) {
-        if (!strcmp(subitem->name, item_name)) {
-            return subitem;
-        }
-        subitem = subitem->next;
-    }
-
-    subitem = parent_dir->files;
-    while (subitem != NULL) {
-        if (!strcmp(subitem->name, item_name)) {
-            return subitem;
-        }
-        subitem = subitem->next;
-    }
-
-    return NULL;
 }
 
 int add_subdirectory_to_directory(vfs *fs, directory *parent_directory, directory_item *subdirectory) {
@@ -128,7 +102,7 @@ int add_subdirectory_to_directory(vfs *fs, directory *parent_directory, director
 
     inode = fs->inodes[subdirectory->inode - 1];
 
-    if (inode->isDirectory) {
+    if (inode->is_directory) {
         if (parent_directory->subdirectories == NULL) {
             parent_directory->subdirectories = subdirectory;
             subdirectory->next = NULL;
@@ -162,7 +136,7 @@ int add_file_to_directory(vfs *fs, directory *parent_directory, directory_item *
 
     inode = fs->inodes[file->inode - 1];
 
-    if (!inode->isDirectory) {
+    if (!inode->is_directory) {
         if (parent_directory->files == NULL) {
             parent_directory->files = file;
             file->next = NULL;
@@ -201,7 +175,7 @@ int remove_subdirectory_from_directory(vfs *fs, directory *parent_directory, dir
 
     inode = fs->inodes[subdirectory->inode - 1];
 
-    if (inode->isDirectory) {
+    if (inode->is_directory) {
         subitem = parent_directory->subdirectories;
 
         if (!strcmp(subitem->name, subdirectory->name)) {    // odstraneni ze zacatku
@@ -245,7 +219,7 @@ int remove_file_from_directory(vfs *fs, directory *parent_directory, directory_i
 
     inode = fs->inodes[file->inode - 1];
 
-    if (!inode->isDirectory) {
+    if (!inode->is_directory) {
         subitem = parent_directory->files;
 
         if (!strcmp(subitem->name, file->name)) {    // odstraneni ze zacatku
@@ -296,7 +270,7 @@ void load_items_from_data_block(vfs *fs, directory *dir, data_block *block) {
             break;
         }
 
-        if (fs->inodes[loaded_directory_item->inode - 1]->isDirectory) {    // nacetli jsme adresar
+        if (fs->inodes[loaded_directory_item->inode - 1]->is_directory) {    // nacetli jsme adresar
             created_directory = create_directory(NULL, NULL, dir, loaded_directory_item);
             fs->all_directories[loaded_directory_item->inode] = created_directory;
 
@@ -322,8 +296,10 @@ void read_directory(vfs *fs, inode *inode, directory *dir) {
     }
 
     if (inode->direct1 != 0) {
-        if (!data_block_empty(fs->data_blocks[inode->direct1 - 1])) {     // pro neprazdny adresar
-            load_items_from_data_block(fs, dir, fs->data_blocks[inode->direct1 - 1]);
+        if (!inode->is_symlink) {
+            if (!data_block_empty(fs->data_blocks[inode->direct1 - 1])) {     // pro neprazdny adresar
+                load_items_from_data_block(fs, dir, fs->data_blocks[inode->direct1 - 1]);
+            }
         }
     }
 }
@@ -672,7 +648,7 @@ int command_make_dir(vfs *fs, char *created_dir_path) {
     created_directory = create_directory(NULL, NULL, parent_dir, created_directory_item);
 
     fs->inodes[free_inode]->nodeid = free_inode + 1;
-    fs->inodes[free_inode]->isDirectory = true;
+    fs->inodes[free_inode]->is_directory = true;
     fs->inodes[free_inode]->direct1 = free_data_block + 1;
     fs->inodes[free_inode]->file_size = DATA_BLOCK_SIZE_B;
     fs->inodes[free_inode]->references = 1;
@@ -701,6 +677,7 @@ int command_make_dir(vfs *fs, char *created_dir_path) {
 int command_remove_dir(vfs *fs, char *removed_dir_path) {
     directory *parent_dir;
     directory *removed_dir;
+    char *removed_dir_name;
     int32_t freed_inode_index;
     int32_t freed_data_block_index;
     directory_item *removed_directory_item;
@@ -711,21 +688,31 @@ int command_remove_dir(vfs *fs, char *removed_dir_path) {
         return 0;
     }
 
-    removed_dir = parse_path(fs, removed_dir_path, false);
+    parent_dir = parse_path(fs, removed_dir_path, true);
 
-    if (!removed_dir) {
+    if (!parent_dir) {
         printf("Directory not found.\n");
         return 0;
     }
+
+    removed_dir_name = get_last_part_of_path(fs, removed_dir_path);
+    removed_directory_item = find_diritem_in_dir_by_name(parent_dir, removed_dir_name);
+
+    if (!fs->inodes[removed_directory_item->inode - 1]->is_directory) {
+        if (!parent_dir) {
+            printf("File is not a directory.\n");
+            return 0;
+        }
+    }
+
+    removed_dir = fs->all_directories[removed_directory_item->inode];
 
     if (count_directory_contents(removed_dir) > 0) {
         printf("Directory not empty.\n");
         return 0;
     }
 
-    parent_dir = removed_dir->parent;
-    removed_directory_item = removed_dir->this_item;
-    freed_inode_index = removed_dir->this_item->inode - 1;
+    freed_inode_index = removed_directory_item->inode - 1;
     freed_data_block_index = fs->inodes[freed_inode_index]->direct1 - 1;
 
     remove_subdirectory_from_directory(fs, parent_dir, removed_directory_item);
@@ -995,7 +982,7 @@ int command_info(vfs *fs, char *path) {
     }
 
     item_name = get_last_part_of_path(fs, path);
-    item = find_item_in_directory(fs, parent_dir, item_name);
+    item = find_diritem_in_dir_by_name(parent_dir, item_name);
     free(item_name);
 
     if (!item) {
@@ -1005,7 +992,12 @@ int command_info(vfs *fs, char *path) {
 
     inode = fs->inodes[item->inode - 1];
 
-    printf("* name: %s - size: %dB - i-node ID: %d *\n", item->name, inode->file_size, inode->nodeid);
+    printf("* name: %s - size: %d B - i-node ID: %d *\n", item->name, inode->file_size, inode->nodeid);
+
+    if (inode->is_symlink) {
+        printf("* %s -> %s *\n", item->name, get_symlink_reference(fs->data_blocks[inode->direct1 - 1]));
+    }
+
     printf("* used data blocks IDs *\n");
     printf("\t- direct: ");
 
@@ -1142,8 +1134,9 @@ int command_in_copy(vfs *fs, char *disk_file_path, char *fs_file_path) {
         return 0;
     }
 
-    parent_dir = parse_path(fs, fs_file_path, false);
-    filename = get_last_part_of_path(fs, disk_file_path);
+    parent_dir = parse_path(fs, fs_file_path, true);
+
+    filename = get_last_part_of_path(fs, fs_file_path);
 
     if (!parent_dir) {
         printf("Path not found.\n");
@@ -1238,7 +1231,7 @@ int command_in_copy(vfs *fs, char *disk_file_path, char *fs_file_path) {
     }
 
     fs->inodes[free_inode]->nodeid = free_inode + 1;
-    fs->inodes[free_inode]->isDirectory = false;
+    fs->inodes[free_inode]->is_directory = false;
     fs->inodes[free_inode]->file_size = file_size;
     fs->inodes[free_inode]->references = 1;
 
@@ -1444,6 +1437,7 @@ int command_concatenate(vfs *fs, char *filepath) {
     parent_dir = parse_path(fs, filepath, true);
     filename = get_last_part_of_path(fs, filepath);
     file = find_diritem_in_dir_by_name(parent_dir, filename);
+    file = find_symlink_target_file(fs, file);
 
     if (!file) {
         printf("File not found.\n");
@@ -1452,7 +1446,7 @@ int command_concatenate(vfs *fs, char *filepath) {
 
     inode = fs->inodes[file->inode - 1];
 
-    if (inode->isDirectory) {
+    if (inode->is_directory) {
         printf("Cannot concatenate a directory.\n");
         return 0;
     }
@@ -1491,6 +1485,7 @@ int command_out_copy(vfs *fs, char *fs_file_path, char *disk_file_path) {
 
     filename = get_last_part_of_path(fs, fs_file_path);
     fs_file = find_diritem_in_dir_by_name(parent_dir, filename);
+    fs_file = find_symlink_target_file(fs, fs_file);
 
     if (!fs_file) {
         printf("File not found.\n");
@@ -1499,7 +1494,7 @@ int command_out_copy(vfs *fs, char *fs_file_path, char *disk_file_path) {
 
     inode = fs->inodes[fs_file->inode - 1];
 
-    if (inode->isDirectory) {
+    if (inode->is_directory) {
         printf("File not found.\n");
         return 0;
     }
@@ -1548,6 +1543,7 @@ int command_remove_file(vfs *fs, char *path) {
 
     filename = get_last_part_of_path(fs, path);
     file_to_remove = find_diritem_in_dir_by_name(parent_dir, filename);
+    //file_to_remove = find_symlink_target(fs, file_to_remove);
 
     if (!file_to_remove) {
         printf("File not found.\n");
@@ -1555,6 +1551,11 @@ int command_remove_file(vfs *fs, char *path) {
     }
 
     freed_inode = fs->inodes[file_to_remove->inode - 1];
+
+    if (freed_inode->is_directory) {
+        printf("Use *rmdir* to remove a directory.\n");
+        return 0;
+    }
 
     if (freed_inode->direct1 != 0) {
         memset(fs->data_blocks[freed_inode->direct1 - 1]->data, 0, DATA_BLOCK_SIZE_B);
@@ -1672,6 +1673,7 @@ int command_move(vfs *fs, char *file, char *path) {
 
     filename = get_last_part_of_path(fs, file);
     file_to_alter = find_diritem_in_dir_by_name(parent_dir, filename);
+    file_to_alter = find_symlink_target_file(fs, file_to_alter);
 
     if (!file_to_alter) {
         printf("File not found.\n");
@@ -1724,7 +1726,7 @@ int command_move(vfs *fs, char *file, char *path) {
         strncpy(moved_directory_item->name, file_to_alter->name, FILENAME_LENGTH);
         moved_directory_item->next = NULL;
 
-        if (fs->inodes[file_to_alter->inode - 1]->isDirectory) {
+        if (fs->inodes[file_to_alter->inode - 1]->is_directory) {
             remove_subdirectory_from_directory(fs, parent_dir, file_to_alter);
             add_subdirectory_to_directory(fs, dir_for_moving, moved_directory_item);
         }
@@ -1789,6 +1791,7 @@ int command_copy(vfs *fs, char *file_path, char *copy_path) {
 
     filename = get_last_part_of_path(fs, file_path);
     file_to_copy = find_diritem_in_dir_by_name(parent_dir, filename);
+    file_to_copy = find_symlink_target_file(fs, file_to_copy);
 
     if (!file_to_copy) {
         printf("File not found.\n");
@@ -1877,7 +1880,7 @@ int command_copy(vfs *fs, char *file_path, char *copy_path) {
     }
 
     fs->inodes[free_inode]->nodeid = free_inode + 1;
-    fs->inodes[free_inode]->isDirectory = false;
+    fs->inodes[free_inode]->is_directory = false;
     fs->inodes[free_inode]->file_size = file_size;
     fs->inodes[free_inode]->references = 1;
 
@@ -2038,6 +2041,136 @@ int command_copy(vfs *fs, char *file_path, char *copy_path) {
     return 1;
 }
 
+int command_sym_link(vfs *fs, char *existing_file_path, char *symbolic_file_path) {
+    directory *existing_file_parent_dir;
+    inode *existing_file_parent_dir_inode;
+    data_block *existing_file_parent_dir_data_block;
+    directory_item *existing_file;
+    char *existing_file_name;
+    char *existing_file_absolute_path;
+    directory *sym_file_parent_dir;
+    inode *sym_file_parent_dir_inode;
+    data_block *sym_file_parent_dir_data_block;
+    int32_t free_inode;
+    int32_t *free_data_blocks;
+    int32_t free_data_block;
+    directory_item *created_sym_file_directory_item;
+    data_block *sym_file_data_block;
+    char *sym_file_name;
+    directory *created_sym_file_directory;  // jen pokud delame symbolicky link na adresar
+
+    if (!fs || !existing_file_path || !symbolic_file_path) {
+        return 0;
+    }
+
+    existing_file_parent_dir = parse_path(fs, existing_file_path, true);
+
+    if (!existing_file_parent_dir) {
+        printf("File not found.\n");
+        return 0;
+    }
+
+    existing_file_name = get_last_part_of_path(fs, existing_file_path);
+    existing_file = find_diritem_in_dir_by_name(existing_file_parent_dir, existing_file_name);
+    existing_file = find_symlink_target_file(fs, existing_file);
+
+    if (!existing_file) {
+        printf("File not found.\n");
+        return 0;
+    }
+
+    sym_file_parent_dir = parse_path(fs, existing_file_path, true);
+
+    if (!sym_file_parent_dir) {
+        printf("Path not found.\n");
+        return 0;
+    }
+
+    if (count_directory_contents(sym_file_parent_dir) >= MAX_DIRECTORY_ITEMS) {
+        printf("Directory has reached the maximum count of items.\n");
+        return 0;
+    }
+
+    sym_file_name = get_last_part_of_path(fs, symbolic_file_path);
+
+    if (strchr(sym_file_name, '/') != NULL) {
+        printf("File name cannot contain the / character.\n");
+        return 0;
+    }
+
+    if (find_diritem_in_dir_by_name(sym_file_parent_dir, sym_file_name) != NULL) {
+        printf("Directory already contains a file with this name.\n");
+        return 0;
+    }
+
+    free_inode = find_free_inode(fs);
+
+    if (free_inode == 0) {
+        printf("No free i-nodes have been found.\n");
+        return 0;
+    }
+
+    free_data_blocks = find_free_data_blocks(fs, 1);
+
+    if (!free_data_blocks) {
+        printf("Not enough free data blocks have been found.\n");
+        return 0;
+    }
+
+    free_data_block = free_data_blocks[0];
+
+    created_sym_file_directory_item = create_directory_item(free_inode + 1, sym_file_name, NULL);
+
+    if (fs->inodes[existing_file->inode - 1]->is_directory) {
+        created_sym_file_directory = create_directory(NULL, NULL, sym_file_parent_dir, created_sym_file_directory_item);
+    }
+
+    fs->inodes[free_inode]->nodeid = free_inode + 1;
+    fs->inodes[free_inode]->is_directory = fs->inodes[existing_file->inode - 1]->is_directory;
+    fs->inodes[free_inode]->is_symlink = true;
+    fs->inodes[free_inode]->direct1 = free_data_block + 1;
+    fs->inodes[free_inode]->file_size = DATA_BLOCK_SIZE_B;
+    fs->inodes[free_inode]->references = 1;
+
+    // vytvoreni absolutni cesty existujiciho souboru
+    existing_file_absolute_path = (char*)calloc(STRING_LENGTH, sizeof(char));
+    strcat(existing_file_absolute_path, find_absolute_path(existing_file_parent_dir));
+    strcat(existing_file_absolute_path, existing_file_name);
+
+    // zapis absolutni cesty do datoveho bloku symbolickeho odkazu
+    sym_file_data_block = fs->data_blocks[free_data_block];
+    write_data_to_data_block(sym_file_data_block, (unsigned char*)existing_file_path);
+
+    set_bit(fs->bitmapi, free_inode);
+    set_bit(fs->bitmapd, free_data_block);
+
+    if (fs->inodes[existing_file->inode - 1]->is_directory) {
+        fs->all_directories[fs->inodes[free_inode]->nodeid] = created_sym_file_directory;
+        add_subdirectory_to_directory(fs, sym_file_parent_dir, created_sym_file_directory_item);
+    }
+    else {
+        add_file_to_directory(fs, sym_file_parent_dir, created_sym_file_directory_item);
+    }
+
+    existing_file_parent_dir_inode = fs->inodes[existing_file_parent_dir->this_item->inode - 1];
+    existing_file_parent_dir_data_block = fs->data_blocks[existing_file_parent_dir_inode->direct1 - 1];
+
+    sym_file_parent_dir_inode = fs->inodes[sym_file_parent_dir->this_item->inode - 1];
+    sym_file_parent_dir_data_block = fs->data_blocks[sym_file_parent_dir_inode->direct1 - 1];
+
+    // zapis do fs->data_blocks
+    write_dir_items_to_data_block(existing_file_parent_dir_data_block, existing_file_parent_dir->subdirectories, existing_file_parent_dir->files);
+    write_dir_items_to_data_block(sym_file_parent_dir_data_block, sym_file_parent_dir->subdirectories, sym_file_parent_dir->files);
+
+    if (!write_vfs_to_file(fs)) {
+        printf("There was an error writing to the VFS file.\n");
+        return 0;
+    }
+
+    printf("OK\n");
+    return 1;
+}
+
 int command_end(vfs *fs) {
     printf("Ending program.\n");
     free(fs);
@@ -2165,7 +2298,7 @@ int execute_command(char *command, char *param1, char *param2, vfs *fs) {
     }
     else if (strcmp(COMMAND_SYMB_LINK, command) == 0) {
         if (fs->loaded) {
-            printf("symbolic link\n");
+            return command_sym_link(fs, param1, param2);
         }
         else {
             return 0;
@@ -2175,4 +2308,6 @@ int execute_command(char *command, char *param1, char *param2, vfs *fs) {
         printf("Unknown command. Use the command *help* to list available commands.\n");
         return 0;
     }
+
+    return 0;
 }
