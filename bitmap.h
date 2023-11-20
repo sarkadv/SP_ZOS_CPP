@@ -7,7 +7,7 @@
 
 
 typedef struct {
-    unsigned char *array;
+    int32_t *array;
     int32_t array_size_B;
     int32_t array_size_b;
 } bitmap;

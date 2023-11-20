@@ -1027,6 +1027,7 @@ int command_info(vfs *fs, char *path) {
     printf("\t- 1. indirect: ");
     if (inode->indirect1 != 0) {
         printf("%d ", inode->indirect1);
+        data_block_count++;
 
         indirect1_blocks = find_all_indirect1_data_blocks(fs->data_blocks[inode->indirect1 - 1], &indirect1_blocks_count);
 
@@ -1040,6 +1041,7 @@ int command_info(vfs *fs, char *path) {
     printf("\t- 2. indirect: ");
     if (inode->indirect2 != 0) {
         printf("%d ", inode->indirect2);
+        data_block_count++;
 
         indirect1_blocks = find_all_indirect1_data_blocks(fs->data_blocks[inode->indirect2 - 1], &indirect1_blocks_count);
 
@@ -1055,7 +1057,10 @@ int command_info(vfs *fs, char *path) {
             data_block_count++;
         }
     }
+
     printf("\n");
+
+    printf("* used data block count: %d *\n", data_block_count);
 
     if (indirect1_blocks != NULL) {
         free(indirect1_blocks);

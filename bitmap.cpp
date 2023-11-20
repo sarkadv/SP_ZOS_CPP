@@ -21,8 +21,7 @@ bitmap *create_bitmap(int32_t size_b) {
     }
 
     new_bitmap = (bitmap*)malloc(sizeof(bitmap));
-    new_bitmap->array = (unsigned char*)calloc(size_B, 1);
-    memset(new_bitmap->array, 0, sizeof(size_B));
+    new_bitmap->array = (int32_t *)calloc(1, size_B);
     new_bitmap->array_size_B = size_B;
     new_bitmap->array_size_b = size_b;
 
@@ -38,9 +37,9 @@ int set_bit(bitmap *bitmap, int32_t bit_index) {
         return 0;
     }
 
-    int8_t flag = 1;
-    int8_t index = bit_index / 8;
-    int8_t index_position = bit_index % 8;
+    int32_t flag = 1;
+    int32_t index = bit_index / 8;
+    int32_t index_position = bit_index % 32;
 
     flag = flag << index_position;
     bitmap->array[index] = bitmap->array[index] | flag;     // logicky soucet
@@ -57,9 +56,9 @@ int clear_bit(bitmap *bitmap, int32_t bit_index) {
         return 0;
     }
 
-    int8_t flag = 1;
-    int8_t index = bit_index / 8;
-    int8_t index_position = bit_index % 8;
+    int32_t flag = 1;
+    int32_t index = bit_index / 8;
+    int32_t index_position = bit_index % 32;
 
     flag = flag << index_position;
     bitmap->array[index] = bitmap->array[index] & (~flag);     // logicky soucin a negace
@@ -78,9 +77,9 @@ bool get_bit(bitmap *bitmap, int32_t bit_index) {
         return 0;
     }
 
-    int8_t flag = 1;
-    int8_t index = bit_index / 8;
-    int8_t index_position = bit_index % 8;
+    int32_t flag = 1;
+    int32_t index = bit_index / 8;
+    int32_t index_position = bit_index % 32;
 
     flag = flag << index_position;
     result = (bitmap->array[index] & flag) != 0;    // logicky soucin
