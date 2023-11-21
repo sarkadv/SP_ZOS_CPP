@@ -84,6 +84,7 @@ int32_t *find_free_data_blocks(vfs *fs, int32_t required_blocks) {
         }
     }
 
+    free(blocks);
     return NULL;    // nedostatek prazdnych bloku
 }
 
@@ -747,6 +748,9 @@ int command_make_dir(vfs *fs, char *created_dir_path) {
         return 0;
     }
 
+    free(created_dir_name);
+    free(free_data_blocks);
+
     printf("OK\n");
     return 1;
 }
@@ -814,6 +818,7 @@ int command_remove_dir(vfs *fs, char *removed_dir_path) {
         return 0;
     }
 
+    free(removed_dir_name);
     printf("OK\n");
     return 1;
 }
@@ -1082,7 +1087,6 @@ int command_info(vfs *fs, char *path) {
 
     item_name = get_last_part_of_path(fs, path);
     item = find_diritem_in_dir_by_name(parent_dir, item_name);
-    free(item_name);
 
     if (!item) {
         printf("File not found.\n");
@@ -1159,6 +1163,8 @@ int command_info(vfs *fs, char *path) {
     printf("\n");
 
     printf("* used data block count: %d *\n", data_block_count);
+
+    free(item_name);
 
     if (indirect1_blocks != NULL) {
         free(indirect1_blocks);
@@ -1531,6 +1537,9 @@ int command_in_copy(vfs *fs, char *disk_file_path, char *fs_file_path) {
         free(indirect2_references_to_write);
     }
 
+    free(filename);
+    free(free_data_blocks);
+
     // zapis vfs do souboru
     if (!write_vfs_to_file(fs)) {
         printf("There was an error writing to the VFS file.\n");
@@ -1583,6 +1592,7 @@ int command_concatenate(vfs *fs, char *filepath) {
     printf("\n");
 
     free(output);
+    free(filename);
 
     return 1;
 }
@@ -1637,6 +1647,7 @@ int command_out_copy(vfs *fs, char *fs_file_path, char *disk_file_path) {
     fclose(fout);
 
     free(filename);
+    free(output);
 
     printf("OK\n");
     return 1;
@@ -2148,6 +2159,10 @@ int command_copy(vfs *fs, char *file_path, char *copy_path) {
         free(indirect2_references_to_write);
     }
 
+    free(filename);
+    free(copy_filename);
+    free(free_data_blocks);
+
     // zapis vfs do souboru
     if (!write_vfs_to_file(fs)) {
         printf("There was an error writing to the VFS file.\n");
@@ -2287,6 +2302,11 @@ int command_sym_link(vfs *fs, char *existing_file_path, char *symbolic_file_path
         return 0;
     }
 
+    free(existing_file_name);
+    free(existing_file_absolute_path);
+    free(sym_file_name);
+    free(free_data_blocks);
+
     printf("OK\n");
     return 1;
 }
@@ -2295,7 +2315,27 @@ int command_sym_link(vfs *fs, char *existing_file_path, char *symbolic_file_path
  * Uvolni struktury file systemu fs a ukonci program.
  */
 int command_end(vfs *fs) {
+    int32_t i;
+
     printf("Ending program.\n");
+    free_bitmap(fs->bitmapd);
+    free_bitmap(fs->bitmapi);
+
+    for (i = 0; i < INODE_COUNT; i++) {
+        free(fs->inodes[i]);
+    }
+
+    for (i = 0; i < fs->superblock->data_block_count; i++) {
+        free(fs->data_blocks[i]);
+    }
+
+    for (i = 1; i < INODE_COUNT + 1; i++) {
+        if (fs->all_directories[i] != NULL) {
+            free(fs->all_directories[i]);
+        }
+    }
+
+    free(fs->superblock);
     free(fs);
     exit(EXIT_SUCCESS);
     return 1;
