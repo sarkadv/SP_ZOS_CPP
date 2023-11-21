@@ -628,6 +628,11 @@ int command_make_dir(vfs *fs, char *created_dir_path) {
         return 0;
     }
 
+    if (find_diritem_in_dir_by_name(parent_dir, created_dir_name)) {
+        printf("Directory already contains a file with this name.\n");
+        return 0;
+    }
+
     free_inode = find_free_inode(fs);
 
     if (free_inode == 0) {
@@ -1747,6 +1752,7 @@ int command_move(vfs *fs, char *file, char *path) {
 int command_copy(vfs *fs, char *file_path, char *copy_path) {
     directory_item *file_to_copy;
     char *filename;
+    char *copy_filename;
     directory *parent_dir;
     directory *dir_for_copying;
     inode *copying_dir_inode;
@@ -1790,14 +1796,16 @@ int command_copy(vfs *fs, char *file_path, char *copy_path) {
         return 0;
     }
 
-    dir_for_copying = parse_path(fs, copy_path, false);
+    dir_for_copying = parse_path(fs, copy_path, true);
 
     if (!dir_for_copying) {
         printf("Path not found.\n");
         return 0;
     }
 
-    if (find_diritem_in_dir_by_name(dir_for_copying, filename) != NULL) {
+    copy_filename = get_last_part_of_path(fs, copy_path);
+
+    if (find_diritem_in_dir_by_name(dir_for_copying, copy_filename) != NULL) {
         printf("Directory already contains a file with this name.\n");
         return 0;
     }
@@ -1908,7 +1916,7 @@ int command_copy(vfs *fs, char *file_path, char *copy_path) {
         set_bit(fs->bitmapd, free_data_blocks[i]);
     }
 
-    created_directory_item = create_directory_item(free_inode + 1, filename, NULL);
+    created_directory_item = create_directory_item(free_inode + 1, copy_filename, NULL);
     add_file_to_directory(fs, dir_for_copying, created_directory_item);
 
     copying_dir_inode = fs->inodes[dir_for_copying->this_item->inode - 1];

@@ -66,6 +66,7 @@ directory *parse_path(vfs *fs, char *input, bool without_last_part) {
 
     if (input_copy[0] == '/') {  // absolutni cesta
         current_directory = fs->root_directory;
+        offset++;
     }
     else {  // relativni cesta
         current_directory = fs->current_directory;
@@ -79,7 +80,7 @@ directory *parse_path(vfs *fs, char *input, bool without_last_part) {
     token = strtok_r(input_copy, delimiter, &saveptr);
 
     if (token != NULL) {
-        offset += strlen(token) + 1;
+        offset += strlen(token);
     }
 
     // pokud chceme parsovat i posledni cast cesty, staci ze token neni NULL
