@@ -1,11 +1,15 @@
-//
-// Created by Šári Dvořáková on 02.11.2023.
-//
+/*
+ * Struktura pro ukladani samotnych dat ve FS.
+ * Pole pro ukladani ma delku DATA_BLOCK_SIZE_B a je typu unsigned char, aby nedochazelo k zapornym hodnotam.
+ */
 
 #include <stdlib.h>
 #include <string.h>
 #include "data_block.h"
 
+/*
+ * Vytvori a vrati strukturu datoveho bloku.
+ */
 data_block *create_data_block() {
     data_block *db = (data_block*)calloc(1, sizeof(data_block));
     memset(db->data, 0, sizeof(DATA_BLOCK_SIZE_B));
@@ -13,6 +17,9 @@ data_block *create_data_block() {
     return db;
 }
 
+/*
+ * Zapise vsechny podadresare subdirectories a soubory files do datoveho bloku prislusnemu adresari block.
+ */
 int write_dir_items_to_data_block(data_block *block, directory_item *subdirectories, directory_item *files) {
     int32_t offset = 0;
 
@@ -39,6 +46,9 @@ int write_dir_items_to_data_block(data_block *block, directory_item *subdirector
     return 1;
 }
 
+/*
+ * Zapise data do datoveho bloku block.
+ */
 int write_data_to_data_block(data_block *block, unsigned char *data) {
     if (!block || !data) {
         return 0;
@@ -50,6 +60,10 @@ int write_data_to_data_block(data_block *block, unsigned char *data) {
     return 1;
 }
 
+/*
+ * Zapise reference na dalsi datove bloky references do datoveho bloku block.
+ * Pocet referenci je refernces_count.
+ */
 int write_references_to_data_block(data_block *block, int32_t *references, int32_t references_count) {
     int i;
 
@@ -66,22 +80,28 @@ int write_references_to_data_block(data_block *block, int32_t *references, int32
     return 1;
 }
 
-int data_block_empty(data_block *block) {
+/*
+ * Zkontroluje, zda je datovy blok prazdny (obsahuje same 0) nebo ne.
+ */
+bool data_block_empty(data_block *block) {
     int i;
 
     if (!block) {
-        return 0;
+        return false;
     }
 
     for (i = 0; i < DATA_BLOCK_SIZE_B; i++) {
         if (block->data[i] != '\0') {
-            return 0;
+            return false;
         }
     }
 
-    return 1;
+    return true;
 }
 
+/*
+ * Vrati referenci na soubor z datoveho bloku block prislusnemu souboru typu symbolicky odkaz.
+ */
 char *get_symlink_reference(data_block *block) {
     char *result;
 
@@ -93,4 +113,15 @@ char *get_symlink_reference(data_block *block) {
     memcpy(result, block->data, STRING_LENGTH);
 
     return result;
+}
+
+/*
+ * Uvolni strukturu datoveho bloku block.
+ */
+void free_data_block(data_block *block) {
+    if (!block) {
+        return;
+    }
+
+    free(block);
 }

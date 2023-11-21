@@ -1,6 +1,6 @@
-//
-// Created by Šári Dvořáková on 02.11.2023.
-//
+/*
+ * Struktura pro i-uzel.
+ */
 
 #ifndef SP_ZOS_CPP_INODE_H
 #define SP_ZOS_CPP_INODE_H

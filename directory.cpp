@@ -1,15 +1,18 @@
-//
-// Created by Šári Dvořáková on 02.11.2023.
-//
+/*
+ * Struktury pro praci s adresari.
+ */
 
 #include <string.h>
 #include <stdlib.h>
 #include "directory.h"
 
+/*
+ * Vytvori adresar s danymi soubory files, podadresari subdirectories, rodicem parent a prislusnym directory_item this_item.
+ */
 directory *create_directory(directory_item *files, directory_item *subdirectories, directory *parent, directory_item *this_item) {
     directory *dir;
 
-    dir = (directory*)malloc(sizeof(directory));
+    dir = (directory*)calloc(1, sizeof(directory));
 
     dir->files = files;
     dir->subdirectories = subdirectories;
@@ -19,6 +22,9 @@ directory *create_directory(directory_item *files, directory_item *subdirectorie
     return dir;
 }
 
+/*
+ * Vytvori directory_item s prislusnym ID i-uzlu inode, jmenem name a dalsim prvkem ve zretezenem seznamu next.
+ */
 directory_item *create_directory_item(int32_t inode, char *name, directory_item *next) {
     directory_item *dir_item;
 
@@ -26,7 +32,7 @@ directory_item *create_directory_item(int32_t inode, char *name, directory_item 
         return NULL;
     }
 
-    dir_item = (directory_item*)malloc(sizeof(directory_item));
+    dir_item = (directory_item*)calloc(1, sizeof(directory_item));
     dir_item->inode = inode;
     strncpy(dir_item->name, name, FILENAME_LENGTH);
     dir_item->next = next;
@@ -34,7 +40,10 @@ directory_item *create_directory_item(int32_t inode, char *name, directory_item 
     return dir_item;
 }
 
-int count_directory_contents(directory *dir) {
+/*
+ * Spocita a vrati pocet souboru v adresari.
+ */
+int32_t count_directory_contents(directory *dir) {
     int32_t sum = 0;
     directory_item *current_file;
     directory_item *current_subdirectory;

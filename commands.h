@@ -1,12 +1,13 @@
-//
-// Created by Šári Dvořáková on 30.10.2023.
-//
+/*
+ * Prikazy, ktere muze uzivatel zadavat pro praci s file systemem.
+ */
 
 #ifndef SP_ZOS_CPP_COMMANDS_H
 #define SP_ZOS_CPP_COMMANDS_H
 
 #include "vfs.h"
 
+// nazvy prikazu
 #define COMMAND_HELP "help"
 #define COMMAND_END "end"
 #define COMMAND_COPY "cp"

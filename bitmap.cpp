@@ -1,12 +1,17 @@
-//
-// Created by Šári Dvořáková on 01.11.2023.
-//
+/*
+ * Bitmapa pro zjisteni dostupnosti i-uzlu nebo datovych bloku.
+ * Jednotlive bity jsou ukladany do 32 bitoveho integeru.
+ */
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include "bitmap.h"
 
+/*
+ * Vytvoreni bitmapu o velikosti size_b bitu.
+ * Tato hodnota je prevedena na byty.
+ */
 bitmap *create_bitmap(int32_t size_b) {
     bitmap *new_bitmap;
 
@@ -28,6 +33,9 @@ bitmap *create_bitmap(int32_t size_b) {
     return new_bitmap;
 }
 
+/*
+ * Nastavi bit v bitmap na indexu bit_index na 1.
+ */
 int set_bit(bitmap *bitmap, int32_t bit_index) {
     if (!bitmap) {
         return 0;
@@ -47,6 +55,9 @@ int set_bit(bitmap *bitmap, int32_t bit_index) {
     return 1;
 }
 
+/*
+ * Nastavi bit v bitmap na indexu bit_index na 0.
+ */
 int clear_bit(bitmap *bitmap, int32_t bit_index) {
     if (!bitmap) {
         return 0;
@@ -66,6 +77,9 @@ int clear_bit(bitmap *bitmap, int32_t bit_index) {
     return 1;
 }
 
+/*
+ * Vrati hodnotu true nebo false podle toho, zda je bit na indexu bit_index v bitmap 1 nebo 0.
+ */
 bool get_bit(bitmap *bitmap, int32_t bit_index) {
     bool result;
 
@@ -86,6 +100,9 @@ bool get_bit(bitmap *bitmap, int32_t bit_index) {
     return result;
 }
 
+/*
+ * Uvolni strukturu bitmap.
+ */
 void free_bitmap(bitmap *bitmap) {
     if (!bitmap) {
         return;
@@ -93,16 +110,4 @@ void free_bitmap(bitmap *bitmap) {
 
     free(bitmap->array);
     free(bitmap);
-}
-
-void print_bitmap(bitmap *bitmap) {
-    int32_t i;
-
-    if (!bitmap) {
-        return;
-    }
-
-    for (i = 0; i < bitmap->array_size_b; i++) {
-        printf("%d ", get_bit(bitmap, i));
-    }
 }

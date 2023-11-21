@@ -1,3 +1,7 @@
+/*
+ * Funkce pro parsovani vstupu od uzivatele a cest ve FS.
+ */
+
 #ifndef SP_ZOS_PARSER_H
 #define SP_ZOS_PARSER_H
 

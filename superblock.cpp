@@ -1,6 +1,6 @@
-//
-// Created by Šári Dvořáková on 02.11.2023.
-//
+/*
+ * Struktura superblocku, ktery obsahuje informace o FS.
+ */
 
 #include <stdlib.h>
 #include <string.h>
@@ -8,6 +8,11 @@
 #include "inode.h"
 #include "bitmap.h"
 
+/*
+ * Vytvori a vrati strukturu superblock.
+ * Superblock obsahuje login autora signature, velikost disku disk_size, velikost jednoho datoveho bloku data_block_size,
+ * pocet datovych bloku data_block_count a velikost bitmapy datovych bloku a i-uzlu v bytech.
+ */
 superblock *create_superblock(char *signature, int32_t disk_size, int32_t data_block_size, int32_t data_block_count, int32_t bitmapd_size_B, int32_t bitmapi_size_B) {
     if (!signature || disk_size <= 0 || data_block_size <= 0 || data_block_count <= 0 || bitmapd_size_B <= 0 || bitmapi_size_B <= 0) {
         return NULL;
@@ -15,7 +20,7 @@ superblock *create_superblock(char *signature, int32_t disk_size, int32_t data_b
 
     superblock *sblock;
 
-    sblock = (superblock*)malloc(sizeof(superblock));
+    sblock = (superblock*)calloc(1, sizeof(superblock));
     memset(sblock->signature, 0, sizeof(sblock->signature));
     strncpy(sblock->signature, signature, 12);
     sblock->disk_size = disk_size;

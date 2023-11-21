@@ -1,7 +1,15 @@
+/*
+ * Funkce pro parsovani vstupu od uzivatele a cest ve FS.
+ */
+
 #include <string.h>
 #include <stdlib.h>
 #include "parser.h"
 
+/*
+ * Zpracuje vstup od uzivatele input.
+ * Na adresu command ulozi prikaz, na adresu param1 ulozi 1. parametr a na adresu param2 ulozi 2. parametr.
+ */
 int parse_input(char *input, char *command, char *param1, char *param2) {
     char *delimiter = NULL;
     char *token = NULL;
@@ -43,15 +51,19 @@ int parse_input(char *input, char *command, char *param1, char *param2) {
     return 1;
 }
 
+/*
+ * Zpracuje cestu input ve file systemu fs.
+ * Pokud nechceme zpracovat posledni cast cesty (protoze to neni adresar), potom without_last_part je true.
+ */
 directory *parse_path(vfs *fs, char *input, bool without_last_part) {
     directory *current_directory;
     directory_item *subdirectory;
     char *delimiter;
     char *token;
     bool found;
-    char *input_copy;
-    int32_t offset = 0;
-    char* saveptr = NULL;
+    char *input_copy;       // kopie vstupu, abychom ho tokenizaci nezmenili
+    int32_t offset = 0;     // posledni zpracovany index vstupu
+    char* saveptr = NULL;   // pro reentrantni strtok
 
     if (!fs) {
         return NULL;
@@ -72,6 +84,7 @@ directory *parse_path(vfs *fs, char *input, bool without_last_part) {
         current_directory = fs->current_directory;
     }
 
+    // na konec vstupu vlozime / a ukoncovaci znak
     input_copy[strlen(input)] = '/';
     input_copy[strlen(input) + 1] = '\0';
 
@@ -127,6 +140,9 @@ directory *parse_path(vfs *fs, char *input, bool without_last_part) {
     return current_directory;
 }
 
+/*
+ * Vrati posledni cast cesty input ve file systemu fs.
+ */
 char *get_last_part_of_path(vfs *fs, char *input) {
     char *result;
     char *last_found;
@@ -150,6 +166,9 @@ char *get_last_part_of_path(vfs *fs, char *input) {
     return result;
 }
 
+/*
+ * Nalezne a vrati polozku se jmenem name v adresari dir.
+ */
 directory_item *find_diritem_in_dir_by_name(directory *dir, char *name) {
     directory_item *subitem;
 
@@ -174,6 +193,10 @@ directory_item *find_diritem_in_dir_by_name(directory *dir, char *name) {
     return NULL;
 }
 
+/*
+ * Nalezne a vrati cil symbolickeho odkazu symlink_file ve file systemu fs.
+ * Funguje v cyklu, tudiz zpracuje i nasobne symbolicke odkazy.
+ */
 directory_item *find_symlink_target_file(vfs *fs, directory_item *symlink_file) {
     directory_item *current_file;
     char *current_file_target;

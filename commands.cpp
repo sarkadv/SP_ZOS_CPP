@@ -1,6 +1,6 @@
-//
-// Created by Šári Dvořáková on 30.10.2023.
-//
+/*
+ * Prikazy, ktere muze uzivatel zadavat pro praci s file systemem.
+ */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -12,6 +12,9 @@
 #include "parser.h"
 #include "constants.h"
 
+/*
+ * Prikaz zobrazi vsechny dostupne prikazy programu.
+ */
 int command_help() {
     printf("--- Available commands ---\n");
     printf("\n");
@@ -36,6 +39,9 @@ int command_help() {
     return 1;
 }
 
+/*
+ * Nalezne a vrati index volneho i-uzlu ve file systemu fs.
+ */
 int32_t find_free_inode(vfs *fs) {
     int i;
 
@@ -52,6 +58,10 @@ int32_t find_free_inode(vfs *fs) {
     return 0;    // zadny prazdny i uzel
 }
 
+/*
+ * Nalezne a vrati indexy volnych datovych bloku ve file systemu fs.
+ * Pocet pozadovanych bloku je parametr required_blocks.
+ */
 int32_t *find_free_data_blocks(vfs *fs, int32_t required_blocks) {
     int32_t *blocks;
     int32_t i;
@@ -77,21 +87,27 @@ int32_t *find_free_data_blocks(vfs *fs, int32_t required_blocks) {
     return NULL;    // nedostatek prazdnych bloku
 }
 
-void create_root_directory(vfs *vfs) {
+/*
+ * Vytvori korenovy adresar file systemu fs.
+ */
+void create_root_directory(vfs *fs) {
     directory_item *root_item = create_directory_item(1, (char*)"", NULL);
-    vfs->root_directory = create_directory(NULL, NULL, NULL, root_item);
-    vfs->all_directories[1] = vfs->root_directory;
+    fs->root_directory = create_directory(NULL, NULL, NULL, root_item);
+    fs->all_directories[1] = fs->root_directory;
 
-    vfs->inodes[0]->nodeid = 1;
-    vfs->inodes[0]->is_directory = true;
-    vfs->inodes[0]->direct1 = 1;    // zabrany 1. datovy blok
+    fs->inodes[0]->nodeid = 1;      // zabrany 1. i-uzel
+    fs->inodes[0]->is_directory = true;
+    fs->inodes[0]->direct1 = 1;    // zabrany 1. datovy blok
 
-    set_bit(vfs->bitmapi, 0);
-    set_bit(vfs->bitmapd, 0);
+    set_bit(fs->bitmapi, 0);
+    set_bit(fs->bitmapd, 0);
 
-    vfs->current_directory = vfs->root_directory;
+    fs->current_directory = fs->root_directory;
 }
 
+/*
+ * Prida podadresar subdirectory do adresare parent_directory ve file systemu fs.
+ */
 int add_subdirectory_to_directory(vfs *fs, directory *parent_directory, directory_item *subdirectory) {
     inode *inode;
     directory_item *subitem;
@@ -126,6 +142,9 @@ int add_subdirectory_to_directory(vfs *fs, directory *parent_directory, director
     return 1;
 }
 
+/*
+ * Prida soubor file do adresare parent_directory ve file systemu fs.
+ */
 int add_file_to_directory(vfs *fs, directory *parent_directory, directory_item *file) {
     inode *inode;
     directory_item *subitem;
@@ -160,6 +179,9 @@ int add_file_to_directory(vfs *fs, directory *parent_directory, directory_item *
     return 1;
 }
 
+/*
+ * Odstrani podadresar subdirectory z adresare parent_directory ve file systemu fs.
+ */
 int remove_subdirectory_from_directory(vfs *fs, directory *parent_directory, directory_item *subdirectory) {
     inode *inode;
     directory_item *subitem;
@@ -204,6 +226,9 @@ int remove_subdirectory_from_directory(vfs *fs, directory *parent_directory, dir
     return removed;
 }
 
+/*
+ * Odstrani soubor file z adresare parent_directory ve file systemu fs.
+ */
 int remove_file_from_directory(vfs *fs, directory *parent_directory, directory_item *file) {
     inode *inode;
     directory_item *subitem;
@@ -250,6 +275,11 @@ int remove_file_from_directory(vfs *fs, directory *parent_directory, directory_i
 
 void read_directory(vfs *fs, inode *inode, directory *dir);
 
+/*
+ * Z datoveho bloku block prislusnemu adresari dir ve file systemu fs nacte polozky directory_item.
+ * Pokud je nactena polozka adresar, funkce je volana rekurzivne.
+ * Pokud je nactena polozka soubor, rekurze je zastavena.
+ */
 void load_items_from_data_block(vfs *fs, directory *dir, data_block *block) {
     directory_item *loaded_directory_item;
     int32_t loaded_items = 0;
@@ -283,12 +313,9 @@ void load_items_from_data_block(vfs *fs, directory *dir, data_block *block) {
     }
 }
 
-/**
- * Rekurzivne nacte directory_itemy z i-uzlu predstavujiciho adresar.
+/*
+ * Rekurzivne nacte polozky directory_item z i-uzlu inode prislusnemu adresari dir ve file systemu fs.
  * Adresare mohou zabrat pouze 1 cluster = datovy blok.
- * @param fs        filesystem
- * @param inode     i uzel
- * @param dir       adresar
  */
 void read_directory(vfs *fs, inode *inode, directory *dir) {
     if (!fs || !inode || !dir) {
@@ -304,6 +331,9 @@ void read_directory(vfs *fs, inode *inode, directory *dir) {
     }
 }
 
+/*
+ * Zacne cteni file systemu fs od korenoveho adresare fs->root_directory.
+ */
 int read_structure(vfs *fs) {
     if (!fs) {
         return 0;
@@ -313,6 +343,9 @@ int read_structure(vfs *fs) {
     return 1;
 }
 
+/*
+ * Nacteni celeho file systemu fs ze souboru na disku.
+ */
 int read_vfs_from_file(vfs *fs) {
     superblock *sblock;
     bitmap *bitmapi;
@@ -332,11 +365,13 @@ int read_vfs_from_file(vfs *fs) {
         return 0;
     }
 
+    // nacteni superblocku
     fread(sblock, sizeof(superblock), 1, fin);
 
     bitmapd = create_bitmap(sblock->data_block_count);
     bitmapi = create_bitmap(INODE_COUNT);
 
+    // nacteni bitmap
     fread(bitmapd->array, sizeof(bitmapd->array_size_B), 1, fin);
     fread(bitmapi->array, sizeof(bitmapi->array_size_B), 1, fin);
 
@@ -353,10 +388,12 @@ int read_vfs_from_file(vfs *fs) {
         fs->data_blocks[i] = create_data_block();
     }
 
+    // nacteni i-uzlu
     for (i = 0; i < INODE_COUNT; i++) {
         fread(fs->inodes[i], sizeof(inode), 1, fin);
     }
 
+    // nacteni datovych bloku
     for (i = 0; i < fs->superblock->data_block_count; i++) {
         fread(fs->data_blocks[i], sizeof(data_block), 1, fin);
     }
@@ -365,6 +402,7 @@ int read_vfs_from_file(vfs *fs) {
 
     create_root_directory(fs);
 
+    // nacteni adresarove struktury
     if (!read_structure(fs)) {
         return 0;
     }
@@ -374,30 +412,36 @@ int read_vfs_from_file(vfs *fs) {
     return 1;
 }
 
-int write_vfs_to_file(vfs *vfs) {
+/*
+ * Zapise file system fs do souboru na disku.
+ */
+int write_vfs_to_file(vfs *fs) {
     FILE* fout;
     int i;
 
-    if (!vfs) {
+    if (!fs) {
         return 0;
     }
 
-    fout = fopen(vfs->name, "wb");
+    fout = fopen(fs->name, "wb");
 
     if (!fout) {
         return 0;
     }
 
-    fwrite(vfs->superblock, sizeof(superblock), 1, fout);
-    fwrite(vfs->bitmapd->array, sizeof(vfs->bitmapd->array_size_B), 1, fout);
-    fwrite(vfs->bitmapi->array, sizeof(vfs->bitmapi->array_size_B), 1, fout);
+    // zapis superblocku, bitmap
+    fwrite(fs->superblock, sizeof(superblock), 1, fout);
+    fwrite(fs->bitmapd->array, sizeof(fs->bitmapd->array_size_B), 1, fout);
+    fwrite(fs->bitmapi->array, sizeof(fs->bitmapi->array_size_B), 1, fout);
 
+    // zapis i-uzlu
     for (i = 0; i < INODE_COUNT; i++) {
-        fwrite(vfs->inodes[i], sizeof(inode), 1, fout);
+        fwrite(fs->inodes[i], sizeof(inode), 1, fout);
     }
 
-    for (i = 0; i < vfs->superblock->data_block_count; i++) {
-        fwrite(vfs->data_blocks[i], sizeof(data_block), 1, fout);
+    // zapis datovych bloku
+    for (i = 0; i < fs->superblock->data_block_count; i++) {
+        fwrite(fs->data_blocks[i], sizeof(data_block), 1, fout);
     }
 
     fclose(fout);
@@ -405,7 +449,10 @@ int write_vfs_to_file(vfs *vfs) {
     return 1;
 }
 
-int command_format(char *size, vfs *vfs) {
+/*
+ * Naformatuje file system fs na danou hodnotu size v bytech.
+ */
+int command_format(char *size, vfs *fs) {
     char units[3];
     uint32_t format_size_B;
     superblock *sblock = NULL;
@@ -417,12 +464,13 @@ int command_format(char *size, vfs *vfs) {
 
     memset(units, 0, sizeof(units));
 
-    if (!size || !vfs) {
+    if (!size || !fs) {
         return 0;
     }
 
     sscanf(size, " %u %2[^0-9]\n", &format_size_B, units);
 
+    // vypocet velikosti v bytech
     if (!strcmp("B", units)) {
         format_size_B = format_size_B * 1;
     }
@@ -445,46 +493,58 @@ int command_format(char *size, vfs *vfs) {
         return 0;
     }
 
-    FILE *fp = fopen(vfs->name, "wb");
+    FILE *fp = fopen(fs->name, "wb");
     fseek(fp, format_size_B - 1, SEEK_SET);
     fputc('\n', fp);
     fclose(fp);
 
+    // vypocet volneho mista pro bloky
     available_space = format_size_B - sizeof(superblock) - sizeof(inode)*INODE_COUNT - INODE_COUNT/8;
+
+    // vypocet poctu bloku
     cluster_count = (8 * available_space - 8)/(8 * sizeof(data_block) + 1);
 
+    // vytvoreni bitmap
     bitmapd = create_bitmap(cluster_count);
-    vfs->bitmapd = bitmapd;
+    fs->bitmapd = bitmapd;
     bitmapi = create_bitmap(INODE_COUNT);
-    vfs->bitmapi = bitmapi;
+    fs->bitmapi = bitmapi;
 
+    // vytvoreni superblocku
     sblock = create_superblock((char*)SIGNATURE, format_size_B, DATA_BLOCK_SIZE_B,
                                cluster_count, bitmapd->array_size_B, bitmapi->array_size_B);
-    vfs->superblock = sblock;
+    fs->superblock = sblock;
 
+    // vytvoreni i-uzlu
     for (i = 0; i < INODE_COUNT; i++) {
-        vfs->inodes[i] = create_inode(ID_ITEM_FREE);
+        fs->inodes[i] = create_inode(ID_ITEM_FREE);
     }
 
-    vfs->data_blocks = (data_block**)calloc(cluster_count, sizeof(data_block*));
+    // vytvoreni datovych bloku
+    fs->data_blocks = (data_block**)calloc(cluster_count, sizeof(data_block*));
 
     for (i = 0; i < cluster_count; i++) {
-        vfs->data_blocks[i] = create_data_block();
+        fs->data_blocks[i] = create_data_block();
     }
 
-    create_root_directory(vfs);
+    // vytvoreni korenoveho adresare
+    create_root_directory(fs);
 
-    if (!write_vfs_to_file(vfs)) {
+    // zapis do souboru
+    if (!write_vfs_to_file(fs)) {
         printf("There was an error writing to the VFS file.\n");
         return 0;
     }
 
-    vfs->loaded = true;
+    fs->loaded = true;
 
     printf("OK\n");
     return 1;
 }
 
+/*
+ * Vypise obsah adresare na ceste path ve file systemu fs.
+ */
 int command_list(vfs *fs, char *path) {
     directory *dir;
     directory_item *subdirectory;
@@ -521,6 +581,9 @@ int command_list(vfs *fs, char *path) {
     return 1;
 }
 
+/*
+ * Najde a vrati textovy retezec absolutni cesty k adresari dir.
+ */
 char *find_absolute_path(directory *dir) {
     std::vector<directory*> path;
     char *reversed;
@@ -555,6 +618,9 @@ char *find_absolute_path(directory *dir) {
 
 }
 
+/*
+ * Vypise aktualni cestu ve file systemu fs.
+ */
 int command_print_work_dir(vfs *fs) {
     char *path;
 
@@ -569,6 +635,9 @@ int command_print_work_dir(vfs *fs) {
     return 1;
 }
 
+/*
+ * Zmeni aktualni cestu do adresare na ceste path ve file systemu fs.
+ */
 int command_change_dir(vfs *fs, char *path) {
     directory *result_directory;
 
@@ -589,6 +658,9 @@ int command_change_dir(vfs *fs, char *path) {
     return 1;
 }
 
+/*
+ * Vytvori adresar na ceste created_dir_path ve file systemu fs.
+ */
 int command_make_dir(vfs *fs, char *created_dir_path) {
     directory *parent_dir;
     char *created_dir_name;
@@ -679,6 +751,9 @@ int command_make_dir(vfs *fs, char *created_dir_path) {
     return 1;
 }
 
+/*
+ * Vymaze prazdny adresar na ceste removed_dir_path ve file systemu fs.
+ */
 int command_remove_dir(vfs *fs, char *removed_dir_path) {
     directory *parent_dir;
     directory *removed_dir;
@@ -743,6 +818,10 @@ int command_remove_dir(vfs *fs, char *removed_dir_path) {
     return 1;
 }
 
+/*
+ * Nalezne a vrati pole vsech bloku odkazovanych 1. neprimym odkazem v bloku block.
+ * Na adresu count je ulozen pocet bloku.
+ */
 int32_t *find_all_indirect1_data_blocks(data_block *block, int32_t *count) {
     int32_t *loaded_block;
     int32_t *result;
@@ -771,6 +850,10 @@ int32_t *find_all_indirect1_data_blocks(data_block *block, int32_t *count) {
     return result;
 }
 
+/*
+ * Nalezne a vrati pole vsech bloku odkazovanych 2. neprimym odkazem v bloku block ve file systemu fs.
+ * Na adresu count je ulozen pocet bloku.
+ */
 int32_t *find_all_indirect2_data_blocks(vfs *fs, data_block *block, int32_t *count) {
     int32_t *loaded_indirect2_block;
     int32_t indirect2_counter = 0;
@@ -809,6 +892,9 @@ int32_t *find_all_indirect2_data_blocks(vfs *fs, data_block *block, int32_t *cou
     return result;
 }
 
+/*
+ * Nalezne a vrati vsechna data (ne odkazy na bloky) jako textovy retezec souboru s prislusnym i-uzlem inode ve file systemu fs.
+ */
 unsigned char *get_all_data_as_string(vfs *fs, inode *inode) {
     unsigned char *result;
     int32_t *indirect1_blocks = NULL;
@@ -934,6 +1020,9 @@ unsigned char *get_all_data_as_string(vfs *fs, inode *inode) {
     return result;
 }
 
+/*
+ * Nalezne a vrati vsechna data (ne odkazy na bloky) jako bloky velikosti DATA_BLOCK_SIZE_B souboru s prislusnym i-uzlem inode ve file systemu fs.
+ */
 unsigned char **get_all_data_as_blocks(vfs *fs, inode *inode) {
     unsigned char **blocks;
     unsigned char *output;
@@ -964,6 +1053,10 @@ unsigned char **get_all_data_as_blocks(vfs *fs, inode *inode) {
     return blocks;
 }
 
+/*
+ * Vypise informace o souboru / adresari na ceste path ve file systemu fs.
+ * Informace zahrnuji jmeno, velikost, i-uzel, prime a neprime odkazy, symbolicky odkaz.
+ */
 int command_info(vfs *fs, char *path) {
     directory *parent_dir;
     directory_item *item;
@@ -1078,6 +1171,11 @@ int command_info(vfs *fs, char *path) {
     return 1;
 }
 
+/*
+ * Nacte soubor na ceste path z pevneho disku s jednotlivymi prikazy pro file system fs.
+ * Prikazy zacne sekvencne vykonavat.
+ * Format je 1 prikaz na 1 radek.
+ */
 int command_load(vfs *fs, char *path) {
     FILE *file;
     char *line = NULL;
@@ -1122,6 +1220,9 @@ int command_load(vfs *fs, char *path) {
     return 1;
 }
 
+/*
+ * Nahraje soubor z pevneho disku na ceste disk_file_path do umisteni fs_file_path ve file systemu fs.
+ */
 int command_in_copy(vfs *fs, char *disk_file_path, char *fs_file_path) {
     FILE *file;
     directory *parent_dir;
@@ -1441,6 +1542,9 @@ int command_in_copy(vfs *fs, char *disk_file_path, char *fs_file_path) {
 
 }
 
+/*
+ * Vypise obsah souboru na ceste filepath ve file systemu fs.
+ */
 int command_concatenate(vfs *fs, char *filepath) {
     directory *parent_dir;
     directory_item *file;
@@ -1483,6 +1587,9 @@ int command_concatenate(vfs *fs, char *filepath) {
     return 1;
 }
 
+/*
+ * Nahraje soubor na ceste fs_file_path ve file systemu fs do umisteni disk_file_path na pevnem disku.
+ */
 int command_out_copy(vfs *fs, char *fs_file_path, char *disk_file_path) {
     directory *parent_dir;
     char *filename;
@@ -1535,6 +1642,10 @@ int command_out_copy(vfs *fs, char *fs_file_path, char *disk_file_path) {
     return 1;
 }
 
+/*
+ * Smaze soubor na ceste path ve file systemu fs.
+ * Timto prikazem nejdou smazat adresare, pro ty je nutne pouzit rmdir.
+ */
 int command_remove_file(vfs *fs, char *path) {
     directory *parent_dir;
     char *filename;
@@ -1667,6 +1778,9 @@ int command_remove_file(vfs *fs, char *path) {
     return 1;
 }
 
+/*
+ * Presune soubor na ceste file do umisteni path ve file systemu fs.
+ */
 int command_move(vfs *fs, char *file, char *path) {
     directory *parent_dir;
     directory_item *file_to_alter;
@@ -1749,6 +1863,9 @@ int command_move(vfs *fs, char *file, char *path) {
     return 1;
 }
 
+/*
+ * Zkopiruje soubor na ceste file_path do umisteni copy_path ve file systemu fs.
+ */
 int command_copy(vfs *fs, char *file_path, char *copy_path) {
     directory_item *file_to_copy;
     char *filename;
@@ -2041,6 +2158,9 @@ int command_copy(vfs *fs, char *file_path, char *copy_path) {
     return 1;
 }
 
+/*
+ * Vytvori symbolicky odkaz na soubor na ceste existing_file_path s cestou a nazvem danym symbolic_file_path ve file systemu fs.
+ */
 int command_sym_link(vfs *fs, char *existing_file_path, char *symbolic_file_path) {
     directory *existing_file_parent_dir;
     inode *existing_file_parent_dir_inode;
@@ -2171,6 +2291,9 @@ int command_sym_link(vfs *fs, char *existing_file_path, char *symbolic_file_path
     return 1;
 }
 
+/*
+ * Uvolni struktury file systemu fs a ukonci program.
+ */
 int command_end(vfs *fs) {
     printf("Ending program.\n");
     free(fs);
@@ -2178,6 +2301,9 @@ int command_end(vfs *fs) {
     return 1;
 }
 
+/*
+ * Pokusi se vykonat prikaz command s parametry param1 a param2 ve file systemu fs.
+ */
 int execute_command(char *command, char *param1, char *param2, vfs *fs) {
     if (!command) {
         return 0;
@@ -2302,11 +2428,6 @@ int execute_command(char *command, char *param1, char *param2, vfs *fs) {
         }
         else {
             return 0;
-        }
-    }
-    else if (strcmp("bitmap", command) == 0) {
-        if (fs->loaded) {
-            print_bitmap(fs->bitmapd);
         }
     }
     else {
