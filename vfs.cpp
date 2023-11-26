@@ -1,5 +1,5 @@
 /*
- * Struktura pro virtualni file system, ktera se vytvori v pameti po nahrani FS z disku.
+ * Vychozi modul programu, vytvori strukturu VFS a pote ve smycce nacita vstup a vykonava prikazy.
  */
 
 #include <stdlib.h>

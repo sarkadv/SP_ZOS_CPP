@@ -21,7 +21,6 @@ superblock *create_superblock(char *signature, int32_t disk_size, int32_t data_b
     superblock *sblock;
 
     sblock = (superblock*)calloc(1, sizeof(superblock));
-    memset(sblock->signature, 0, sizeof(sblock->signature));
     strncpy(sblock->signature, signature, 12);
     sblock->disk_size = disk_size;
     sblock->data_block_size = data_block_size;

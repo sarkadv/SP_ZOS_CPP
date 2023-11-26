@@ -373,8 +373,8 @@ int read_vfs_from_file(vfs *fs) {
     bitmapi = create_bitmap(INODE_COUNT);
 
     // nacteni bitmap
-    fread(bitmapd->array, sizeof(bitmapd->array_size_B), 1, fin);
-    fread(bitmapi->array, sizeof(bitmapi->array_size_B), 1, fin);
+    fread(bitmapd->array, bitmapd->array_size_B, 1, fin);
+    fread(bitmapi->array, bitmapi->array_size_B, 1, fin);
 
     fs->bitmapd = bitmapd;
     fs->bitmapi = bitmapi;
@@ -432,8 +432,8 @@ int write_vfs_to_file(vfs *fs) {
 
     // zapis superblocku, bitmap
     fwrite(fs->superblock, sizeof(superblock), 1, fout);
-    fwrite(fs->bitmapd->array, sizeof(fs->bitmapd->array_size_B), 1, fout);
-    fwrite(fs->bitmapi->array, sizeof(fs->bitmapi->array_size_B), 1, fout);
+    fwrite(fs->bitmapd->array, fs->bitmapd->array_size_B, 1, fout);
+    fwrite(fs->bitmapi->array, fs->bitmapi->array_size_B, 1, fout);
 
     // zapis i-uzlu
     for (i = 0; i < INODE_COUNT; i++) {
@@ -463,7 +463,7 @@ int command_format(char *size, vfs *fs) {
     bitmap *bitmapi;
     int i;
 
-    memset(units, 0, sizeof(units));
+    memset(units, 0, 3);
 
     if (!size || !fs) {
         return 0;
@@ -2214,7 +2214,7 @@ int command_sym_link(vfs *fs, char *existing_file_path, char *symbolic_file_path
         return 0;
     }
 
-    sym_file_parent_dir = parse_path(fs, existing_file_path, true);
+    sym_file_parent_dir = parse_path(fs, symbolic_file_path, true);
 
     if (!sym_file_parent_dir) {
         printf("Path not found.\n");
