@@ -451,7 +451,7 @@ int write_vfs_to_file(vfs *fs) {
 }
 
 /*
- * Naformatuje file system fs na danou hodnotu size v bytech.
+ * Naformatuje file system fs na danou hodnotu size.
  */
 int command_format(char *size, vfs *fs) {
     char units[3];
@@ -1921,6 +1921,11 @@ int command_copy(vfs *fs, char *file_path, char *copy_path) {
 
     if (!file_to_copy) {
         printf("File not found.\n");
+        return 0;
+    }
+
+    if (fs->inodes[file_to_copy->inode - 1]->is_directory) {
+        printf("Cannot copy a directory.\n");
         return 0;
     }
 
