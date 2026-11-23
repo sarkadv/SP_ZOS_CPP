@@ -1,0 +1,4 @@
+# Build output
+*.o
+vfs
+cmake-build-*/
