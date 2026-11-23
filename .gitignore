@@ -2,3 +2,7 @@
 *.o
 vfs
 cmake-build-*/
+
+# Editor and OS files
+.DS_Store
+.idea/
